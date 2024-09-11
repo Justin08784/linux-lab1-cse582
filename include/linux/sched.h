@@ -1357,8 +1357,8 @@ struct task_struct {
 #endif
 
 
-	void *ptrace_snapshot = NULL;	
-	unsigned long ptrace_snapshot_len = 0;
+	void *ptrace_snapshot;	
+	unsigned long ptrace_snapshot_len;
 
 
 	/*
