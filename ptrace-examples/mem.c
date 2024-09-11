@@ -12,6 +12,10 @@
 #include <linux/elf.h>
 #include <signal.h>
 
+#define PTRACE_SNAPSHOT		  10
+#define PTRACE_RESTORE		  11
+#define PTRACE_GETSNAPSHOT	  12
+
 int val = 0x01010101;
 
 void proc_child()
@@ -19,6 +23,7 @@ void proc_child()
     // Child process: Request tracing by the parent
     ptrace(PTRACE_TRACEME, 0, NULL, NULL);
     raise(SIGSTOP);
+    exit(0);
 
     val = 0x12121212;
     raise(SIGSTOP);
@@ -41,6 +46,13 @@ int main()
     while (1) {
         // Parent process: Wait for the child to stop
         waitpid(child, &status, 0);
+        ptrace(PTRACE_SNAPSHOT, child, &val, NULL);
+
+        int jawohl = 0;
+	printf("jawohl: %p\n", &jawohl);
+        ptrace(PTRACE_GETSNAPSHOT, child, &val, &jawohl);
+        printf("humpty: %x\n", jawohl);
+        exit(0);
 
         if (WIFEXITED(status))
             break;
@@ -51,6 +63,12 @@ int main()
             return 1;
         }
         printf("val: %x\n", rv);
+
+        int sn_rv = ptrace(PTRACE_SNAPSHOT, child, &val, NULL);
+        if (rv == -1) {
+            perror("ptrace PTRACE_GETREGSET");
+            return 1;
+        }
         ptrace(PTRACE_CONT, child, NULL, NULL);
     }
 
