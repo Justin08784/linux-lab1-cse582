@@ -1356,6 +1356,11 @@ struct task_struct {
 	int				mce_count;
 #endif
 
+
+	void *ptrace_snapshot = NULL;	
+	unsigned long ptrace_snapshot_len = 0;
+
+
 	/*
 	 * New fields for task_struct should be added above here, so that
 	 * they are included in the randomized portion of task_struct.

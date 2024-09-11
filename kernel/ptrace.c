@@ -8,6 +8,7 @@
  * to continually duplicate across every architecture.
  */
 
+#include <linux/kernel.h>
 #include <linux/capability.h>
 #include <linux/export.h>
 #include <linux/sched.h>
@@ -1026,9 +1027,55 @@ ptrace_get_syscall_info(struct task_struct *child, unsigned long user_size,
 }
 #endif /* CONFIG_HAVE_ARCH_TRACEHOOK */
 
+int generic_ptrace_snapshot(struct task_struct *tsk, unsigned long addr,
+			    unsigned long data)
+{
+	unsigned long len = tsk->ptrace_snapshot_len;
+
+	if (len != sizeof(int)) {
+		tsk->ptrace_snapshot = krealloc(tsk->ptrace_snapshot, sizeof(int), GFP_KERNEL);
+		tsk->ptrace_snapshot_len = sizeof(int);
+		len = tsk->ptrace_snapshot_len;
+	}
+	
+	// where does this get freed when the thread terminates?
+	void *snapshot = tsk->ptrace_snapshot;	
+	if (!snapshot)
+		return -EIO;
+
+	int tmp;
+	int copied = ptrace_access_vm(tsk, addr, &tmp, len, FOLL_FORCE);
+	if (copied != sizeof(tmp))
+		return -EIO;
+
+	*(int *)snapshot = tmp;
+	return 0;
+}
+
+int generic_ptrace_restore(struct task_struct *tsk, unsigned long addr,
+			   unsigned long data)
+{
+	return -EIO;
+}
+
+int generic_ptrace_getsnapshot(struct task_struct *tsk, unsigned long addr,
+			       unsigned long data)
+{
+	unsigned long len = tsk->ptrace_snapshot_len;
+	
+	// where does this get freed when the thread terminates?
+	void *snapshot = tsk->ptrace_snapshot;	
+	if (!snapshot)
+		return -EIO;
+
+	return copy_to_user(addr, snapshot, tsk->ptrace_snapshot_len);
+}
+
+
 int ptrace_request(struct task_struct *child, long request,
 		   unsigned long addr, unsigned long data)
 {
+	// printk(KERN_EMERG "my message: ooga booga\n");
 	bool seized = child->ptrace & PT_SEIZED;
 	int ret = -EIO;
 	kernel_siginfo_t siginfo, *si;
@@ -1043,6 +1090,12 @@ int ptrace_request(struct task_struct *child, long request,
 	case PTRACE_POKETEXT:
 	case PTRACE_POKEDATA:
 		return generic_ptrace_pokedata(child, addr, data);
+	case PTRACE_SNAPSHOT:
+		return generic_ptrace_pokedata(child, addr, data);
+	case PTRACE_RESTORE:
+		return generic_ptrace_restore(child, addr, data);
+	case PTRACE_GETSNAPSHOT:
+		return generic_ptrace_getsnapshot(child, addr, data);
 
 #ifdef PTRACE_OLDSETOPTIONS
 	case PTRACE_OLDSETOPTIONS:
