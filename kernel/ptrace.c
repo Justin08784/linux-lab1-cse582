@@ -1030,32 +1030,33 @@ ptrace_get_syscall_info(struct task_struct *child, unsigned long user_size,
 int generic_ptrace_snapshot(struct task_struct *tsk, unsigned long addr,
 			    unsigned long data)
 {
-	printk(KERN_EMERG "snapshot: taking snapshot @%lx\n", addr);
-	unsigned long len = tsk->ptrace_snapshot_len;
+	return -EIO;
+	// printk(KERN_EMERG "snapshot: taking snapshot @%lx\n", addr);
+	// unsigned long len = tsk->ptrace_snapshot_len;
 
-	if (len != sizeof(int)) {
-		tsk->ptrace_snapshot = krealloc(tsk->ptrace_snapshot, sizeof(int), GFP_KERNEL);
-		tsk->ptrace_snapshot_len = sizeof(int);
-		len = tsk->ptrace_snapshot_len;
-	}
-	
-	// where does this get freed when the thread terminates?
-	void *snapshot = tsk->ptrace_snapshot;	
-	if (!snapshot)
-		return -EIO;
+	// if (len != sizeof(int)) {
+	// 	tsk->ptrace_snapshot = krealloc(tsk->ptrace_snapshot, sizeof(int), GFP_KERNEL);
+	// 	tsk->ptrace_snapshot_len = sizeof(int);
+	// 	len = tsk->ptrace_snapshot_len;
+	// }
+	// 
+	// // where does this get freed when the thread terminates?
+	// void *snapshot = tsk->ptrace_snapshot;	
+	// if (!snapshot)
+	// 	return -EIO;
 
-	int tmp;
-	int copied = ptrace_access_vm(tsk, addr, &tmp, (int) len, FOLL_FORCE);
-	if (copied != sizeof(tmp))
-		return -EIO;
+	// int tmp;
+	// int copied = ptrace_access_vm(tsk, addr, &tmp, (int) len, FOLL_FORCE);
+	// if (copied != sizeof(tmp))
+	// 	return -EIO;
 
-	printk(KERN_EMERG "snapshot: len = %ld\n", len);
-	printk(KERN_EMERG "snapshot: data = %p\n", (void *)data);
-	printk(KERN_EMERG "snapshot: tmp = %x\n", tmp);
-	*(int *)snapshot = tmp;
-	printk(KERN_EMERG "snapshot: snapshot = %p\n", snapshot);
-	printk(KERN_EMERG "snapshot: *snapshot = %x\n", *(int *)snapshot);
-	return 0;
+	// printk(KERN_EMERG "snapshot: len = %ld\n", len);
+	// printk(KERN_EMERG "snapshot: data = %p\n", (void *)data);
+	// printk(KERN_EMERG "snapshot: tmp = %x\n", tmp);
+	// *(int *)snapshot = tmp;
+	// printk(KERN_EMERG "snapshot: snapshot = %p\n", snapshot);
+	// printk(KERN_EMERG "snapshot: *snapshot = %x\n", *(int *)snapshot);
+	// return 0;
 }
 
 int generic_ptrace_restore(struct task_struct *tsk, unsigned long addr,
@@ -1067,19 +1068,20 @@ int generic_ptrace_restore(struct task_struct *tsk, unsigned long addr,
 int generic_ptrace_getsnapshot(struct task_struct *tsk, unsigned long addr,
 			       unsigned long data)
 {
-	printk(KERN_EMERG "getsnapshot: getting snapshot @%lx\n", addr);
-	unsigned long len = tsk->ptrace_snapshot_len;
-	printk(KERN_EMERG "getsnapshot: len = %ld\n", len);
-	printk(KERN_EMERG "getsnapshot: data = %p\n", (void *)data);
-	
-	// where does this get freed when the thread terminates?
-	void *snapshot = tsk->ptrace_snapshot;	
-	if (!snapshot)
-		return -EIO;
-	printk(KERN_EMERG "getsnapshot: snapshot = %p\n", snapshot);
-	printk(KERN_EMERG "getsnapshot: *snapshot = %x\n", *(int *)snapshot);
+	return -EIO;
+	// printk(KERN_EMERG "getsnapshot: getting snapshot @%lx\n", addr);
+	// unsigned long len = tsk->ptrace_snapshot_len;
+	// printk(KERN_EMERG "getsnapshot: len = %ld\n", len);
+	// printk(KERN_EMERG "getsnapshot: data = %p\n", (void *)data);
+	// 
+	// // where does this get freed when the thread terminates?
+	// void *snapshot = tsk->ptrace_snapshot;	
+	// if (!snapshot)
+	// 	return -EIO;
+	// printk(KERN_EMERG "getsnapshot: snapshot = %p\n", snapshot);
+	// printk(KERN_EMERG "getsnapshot: *snapshot = %x\n", *(int *)snapshot);
 
-	return copy_to_user((void *)data, snapshot, tsk->ptrace_snapshot_len);
+	// return copy_to_user((void *)data, snapshot, tsk->ptrace_snapshot_len);
 }
 
 
