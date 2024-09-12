@@ -224,8 +224,8 @@ static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
 	child->jobctl = 0;
 	child->ptrace = 0;
 	child->parent = child->real_parent;
-	child->ptrace_snapshot_ctx = NULL;
-
+	child->ptrace_snapshot_ctx = kvzalloc(sizeof(struct ptrace_snapshot_ctx), GFP_KERNEL);
+	BUG_ON(!child->ptrace_snapshot_ctx);	
 	if (unlikely(ptrace) && current->ptrace) {
 		child->ptrace = current->ptrace;
 		__ptrace_link(child, current->parent, current->ptracer_cred);
@@ -247,7 +247,25 @@ static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
  */
 static inline void ptrace_release_task(struct task_struct *task)
 {
+        struct ptrace_snapshot_ctx *ctx = task->ptrace_snapshot_ctx;
+        struct ptrace_snapshot *snapshots, *cur;
+	size_t i;
 	BUG_ON(!list_empty(&task->ptraced));
+        if (ctx->snapshots_len == 0)
+                goto end_free_snapshots;
+ 
+        snapshots = ctx->snapshots;
+        BUG_ON(!snapshots);
+ 
+        for (i = 0; i < ctx->snapshots_len; ++i) {
+                cur = &snapshots[i];
+                if (cur->size == 0)
+                        continue;
+                kvfree(cur->data);
+        }
+ 
+        kvfree(snapshots);
+end_free_snapshots:
 	ptrace_unlink(task);
 	BUG_ON(!list_empty(&task->ptrace_entry));
 }
