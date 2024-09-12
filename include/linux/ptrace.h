@@ -71,6 +71,25 @@ extern void exit_ptrace(struct task_struct *tracer, struct list_head *dead);
 #define PTRACE_MODE_ATTACH_FSCREDS (PTRACE_MODE_ATTACH | PTRACE_MODE_FSCREDS)
 #define PTRACE_MODE_ATTACH_REALCREDS (PTRACE_MODE_ATTACH | PTRACE_MODE_REALCREDS)
 
+#define MAX_PTRACE_SNAPSHOT_SIZE  64  // in bytes
+#define MAX_TRACEE_SNAPSHOT_NUM   64
+#define MAX_TRACEE_SNAPSHOT_SIZE  4096
+
+/*
+ * Snapshot structs */
+struct ptrace_snapshot {
+	unsigned long addr;
+	unsigned int size;
+	void *data;
+};
+
+struct ptrace_snapshot_ctx {
+	struct ptrace_snapshot *snapshots;
+	unsigned int snapshots_len;
+	unsigned int num_active_snapshots;
+	unsigned int total_snapshot_size;
+};
+
 /**
  * ptrace_may_access - check whether the caller is permitted to access
  * a target task.
@@ -205,6 +224,7 @@ static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
 	child->jobctl = 0;
 	child->ptrace = 0;
 	child->parent = child->real_parent;
+	child->ptrace_snapshot_ctx = NULL;
 
 	if (unlikely(ptrace) && current->ptrace) {
 		child->ptrace = current->ptrace;

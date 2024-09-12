@@ -22,25 +22,6 @@
 #define PTRACE_RESTORE		  11
 #define PTRACE_GETSNAPSHOT	  12
 
-#define MAX_SNAPSHOT_SIZE	  64	// in bytes
-#define MAX_TRACEE_SNAPSHOT_NUM	  64
-#define MAX_TRACEE_SNAPSHOT_SIZE  4096
-
-/*
- * Snapshot structs */
-struct ptrace_snapshot {
-	unsigned long addr;
-	unsigned int size;
-	void *data;
-};
-
-struct task_ptrace_snapshots {
-	struct ptrace_snapshot *snapshots;
-	unsigned int snapshots_len;
-	unsigned int num_active_snapshots;
-	unsigned int total_snapshot_size;
-};
-
 #define PTRACE_ATTACH		  16
 #define PTRACE_DETACH		  17
 

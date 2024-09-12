@@ -50,6 +50,7 @@ struct nsproxy;
 struct perf_event_context;
 struct pid_namespace;
 struct pipe_inode_info;
+struct ptrace_snapshot_ctx;
 struct rcu_node;
 struct reclaim_state;
 struct robust_list_head;
@@ -1357,8 +1358,7 @@ struct task_struct {
 #endif
 
 
-	void *ptrace_snapshot;	
-	unsigned long ptrace_snapshot_len;
+	struct ptrace_snapshot_ctx *ptrace_snapshot_ctx;
 
 
 	/*

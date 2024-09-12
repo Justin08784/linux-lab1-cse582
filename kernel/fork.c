@@ -889,8 +889,6 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 	 * functions again.
 	 */
 	tsk->stack = stack;
-	tsk->ptrace_snapshot = NULL;
-	tsk->ptrace_snapshot_len = 0;
 #ifdef CONFIG_VMAP_STACK
 	tsk->stack_vm_area = stack_vm_area;
 #endif
