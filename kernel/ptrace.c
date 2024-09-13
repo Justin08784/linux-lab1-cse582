@@ -35,6 +35,9 @@
 
 #include <asm/syscall.h>	/* for syscall_get_* */
 
+#define INITIAL_SNAPSHOTS_LEN 8
+#define INITIAL_SNAPSHOTS_LEN 8
+
 /*
  * Access another process' address space via ptrace.
  * Source/target buffer must be kernel space,
@@ -1030,33 +1033,103 @@ ptrace_get_syscall_info(struct task_struct *child, unsigned long user_size,
 int generic_ptrace_snapshot(struct task_struct *tsk, unsigned long addr,
 			    unsigned long data)
 {
-	return -EIO;
-	// printk(KERN_EMERG "snapshot: taking snapshot @%lx\n", addr);
-	// unsigned long len = tsk->ptrace_snapshot_len;
+	struct ptrace_snapshot_ctx *ctx;
+	struct ptrace_snapshot *dst, *cur, *tmp;
+	size_t i;
+	unsigned int old_len, new_len;
+	void *data_tmp;
+	const unsigned int data_size = sizeof(int);
+	int copied;
 
-	// if (len != sizeof(int)) {
-	// 	tsk->ptrace_snapshot = krealloc(tsk->ptrace_snapshot, sizeof(int), GFP_KERNEL);
-	// 	tsk->ptrace_snapshot_len = sizeof(int);
-	// 	len = tsk->ptrace_snapshot_len;
-	// }
-	// 
-	// // where does this get freed when the thread terminates?
-	// void *snapshot = tsk->ptrace_snapshot;	
-	// if (!snapshot)
-	// 	return -EIO;
+	printk(KERN_EMERG "snapshot: taking snapshot @%lx\n", addr);
+	ctx = tsk->ptrace_snapshot_ctx;
 
-	// int tmp;
-	// int copied = ptrace_access_vm(tsk, addr, &tmp, (int) len, FOLL_FORCE);
-	// if (copied != sizeof(tmp))
-	// 	return -EIO;
+	dst = NULL;
+	for (i = 0; i < ctx->snapshots_len; ++i) {
+		cur = &ctx->snapshots[i];
+		if (cur->addr == addr)
+			continue;
+		dst = cur;
+		break;
+	}
 
-	// printk(KERN_EMERG "snapshot: len = %ld\n", len);
-	// printk(KERN_EMERG "snapshot: data = %p\n", (void *)data);
-	// printk(KERN_EMERG "snapshot: tmp = %x\n", tmp);
-	// *(int *)snapshot = tmp;
-	// printk(KERN_EMERG "snapshot: snapshot = %p\n", snapshot);
-	// printk(KERN_EMERG "snapshot: *snapshot = %x\n", *(int *)snapshot);
-	// return 0;
+check_addr:
+	if (dst) {
+		printk(KERN_EMERG "snapshot: addr match found");
+		goto check_size;
+	}
+	printk(KERN_EMERG "snapshot: addr no match");
+
+	/* snapshot with matching address not found */
+	if (ctx->num_active_snapshots == ctx->snapshots_len) {
+		/* snapshot array full */
+		printk(KERN_EMERG "snapshot: arr full");
+
+		if (ctx->snapshots_len == MAX_TRACEE_SNAPSHOT_NUM)
+			return -ENOMEM;
+
+		old_len = ctx->snapshots_len;
+		new_len = old_len ? 2 * old_len : INITIAL_SNAPSHOTS_LEN;
+
+		tmp = krealloc(ctx->snapshots,
+			       new_len * sizeof(struct ptrace_snapshot),
+			       GFP_KERNEL);
+		if (!tmp)
+			return -ENOMEM;
+		for (i = old_len; i < new_len; ++i) {
+			cur = &tmp[i];
+			cur->data = NULL;
+			cur->addr = 0;
+			cur->size = 0;
+		}
+		ctx->snapshots = tmp;
+		ctx->snapshots_len = new_len;
+
+		dst = &ctx->snapshots[old_len];
+	} else {
+		printk(KERN_EMERG "snapshot: arr not full");
+		for (i = 0; i < ctx->snapshots_len; ++i) {
+			cur = &ctx->snapshots[i];
+			if (cur->size != 0)
+				continue;
+			dst = cur;
+			break;
+		}
+	}
+
+	printk(KERN_EMERG "snapshot: incr num_active");
+	++ctx->num_active_snapshots;
+	BUG_ON(!dst);
+
+check_size:
+	// TODO: data_size should be passed as a parameter in data
+	if (dst->size == data_size) {
+		printk(KERN_EMERG "snapshot: size match");
+		goto take_snap;
+	}
+	printk(KERN_EMERG "snapshot: size no match");
+
+	data_tmp = krealloc(dst->data, data_size, GFP_KERNEL);
+	if (!data_tmp)
+		return -ENOMEM;
+	dst->data = data_tmp;
+	dst->size = data_size;
+	dst->addr = addr;
+
+
+take_snap:
+	printk(KERN_EMERG "snapshot: accessing");
+	copied = ptrace_access_vm(tsk, addr, dst->data, (int) dst->size, FOLL_FORCE);
+	printk(KERN_EMERG "snapshot: access finished");
+	if (copied != dst->size)
+		return -EIO;
+
+	printk(KERN_EMERG "snapshot: data = %p\n", (void *)data);
+	printk(KERN_EMERG "snapshot: dst->size = %d\n", dst->size);
+	printk(KERN_EMERG "snapshot: dst->addr = %lx\n", dst->addr);
+	printk(KERN_EMERG "snapshot: dst->data = %p\n", dst->data);
+	printk(KERN_EMERG "snapshot: *(dst->data) = %x\n", *(int *)dst->data);
+	return 0;
 }
 
 int generic_ptrace_restore(struct task_struct *tsk, unsigned long addr,
@@ -1068,22 +1141,27 @@ int generic_ptrace_restore(struct task_struct *tsk, unsigned long addr,
 int generic_ptrace_getsnapshot(struct task_struct *tsk, unsigned long addr,
 			       unsigned long data)
 {
-	return -EIO;
-	// printk(KERN_EMERG "getsnapshot: getting snapshot @%lx\n", addr);
-	// unsigned long len = tsk->ptrace_snapshot_len;
-	// printk(KERN_EMERG "getsnapshot: len = %ld\n", len);
-	// printk(KERN_EMERG "getsnapshot: data = %p\n", (void *)data);
-	// 
-	// // where does this get freed when the thread terminates?
-	// void *snapshot = tsk->ptrace_snapshot;	
-	// if (!snapshot)
-	// 	return -EIO;
-	// printk(KERN_EMERG "getsnapshot: snapshot = %p\n", snapshot);
-	// printk(KERN_EMERG "getsnapshot: *snapshot = %x\n", *(int *)snapshot);
+	size_t i;
+	printk(KERN_EMERG "getsnapshot: getting snapshot @%lx\n", addr);
+	struct ptrace_snapshot_ctx *ctx = tsk->ptrace_snapshot_ctx;
 
-	// return copy_to_user((void *)data, snapshot, tsk->ptrace_snapshot_len);
+	struct ptrace_snapshot *snap = NULL;
+	for (i = 0; i < ctx->snapshots_len; ++i) {
+		struct ptrace_snapshot *cur = &ctx->snapshots[i];
+		if (cur->addr != addr)
+			continue;
+		snap = cur;
+	}
+
+	if (!snap)
+		return -EIO;
+	printk(KERN_EMERG "getsnapshot: snap->size = %d\n", snap->size);
+	printk(KERN_EMERG "getsnapshot: snap->addr = %lx\n", snap->addr);
+	printk(KERN_EMERG "getsnapshot: snap->data = %p\n", snap->data);
+	printk(KERN_EMERG "getsnapshot: *(dst->data) = %x\n", *(int *)snap->data);
+
+	return copy_to_user((void *)data, snap->data, snap->size);
 }
-
 
 int ptrace_request(struct task_struct *child, long request,
 		   unsigned long addr, unsigned long data)

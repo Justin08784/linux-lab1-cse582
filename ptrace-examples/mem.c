@@ -45,19 +45,21 @@ int main()
 
     while (1) {
         // Parent process: Wait for the child to stop
+        int rv;
         waitpid(child, &status, 0);
-        ptrace(PTRACE_SNAPSHOT, child, &val, NULL);
+        rv = ptrace(PTRACE_SNAPSHOT, child, &val, NULL);
+        printf("(snap)rv: %d\n", rv);
 
         int jawohl = 0;
 	printf("jawohl: %p\n", &jawohl);
-        ptrace(PTRACE_GETSNAPSHOT, child, &val, &jawohl);
-        printf("humpty: %x\n", jawohl);
+        rv = ptrace(PTRACE_GETSNAPSHOT, child, &val, &jawohl);
+        printf("(getsnap)rv: %d, humpty: %x\n", rv, jawohl);
         exit(0);
 
         if (WIFEXITED(status))
             break;
 
-        int rv = ptrace(PTRACE_PEEKDATA, child, &val, NULL);
+        rv = ptrace(PTRACE_PEEKDATA, child, &val, NULL);
         if (rv == -1) {
             perror("ptrace PTRACE_GETREGSET");
             return 1;
