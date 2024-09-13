@@ -23,7 +23,6 @@ void proc_child()
     // Child process: Request tracing by the parent
     ptrace(PTRACE_TRACEME, 0, NULL, NULL);
     raise(SIGSTOP);
-    exit(0);
 
     val = 0x12121212;
     raise(SIGSTOP);
@@ -47,30 +46,24 @@ int main()
         // Parent process: Wait for the child to stop
         int rv;
         waitpid(child, &status, 0);
+        if (WIFEXITED(status))
+            break;
         rv = ptrace(PTRACE_SNAPSHOT, child, &val, NULL);
+        if (rv == -1) {
+            perror("ptrace PTRACE_SNAPSHOT");
+            return 1;
+        }
         printf("(snap)rv: %d\n", rv);
 
         int jawohl = 0;
 	printf("jawohl: %p\n", &jawohl);
         rv = ptrace(PTRACE_GETSNAPSHOT, child, &val, &jawohl);
+        if (rv == -1) {
+            perror("ptrace PTRACE_GETSNAPSHOT");
+            return 1;
+        }
         printf("(getsnap)rv: %d, humpty: %x\n", rv, jawohl);
-        exit(0);
 
-        if (WIFEXITED(status))
-            break;
-
-        rv = ptrace(PTRACE_PEEKDATA, child, &val, NULL);
-        if (rv == -1) {
-            perror("ptrace PTRACE_GETREGSET");
-            return 1;
-        }
-        printf("val: %x\n", rv);
-
-        int sn_rv = ptrace(PTRACE_SNAPSHOT, child, &val, NULL);
-        if (rv == -1) {
-            perror("ptrace PTRACE_GETREGSET");
-            return 1;
-        }
         ptrace(PTRACE_CONT, child, NULL, NULL);
     }
 

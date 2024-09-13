@@ -36,7 +36,6 @@
 #include <asm/syscall.h>	/* for syscall_get_* */
 
 #define INITIAL_SNAPSHOTS_LEN 8
-#define INITIAL_SNAPSHOTS_LEN 8
 
 /*
  * Access another process' address space via ptrace.
@@ -1043,11 +1042,13 @@ int generic_ptrace_snapshot(struct task_struct *tsk, unsigned long addr,
 
 	printk(KERN_EMERG "snapshot: taking snapshot @%lx\n", addr);
 	ctx = tsk->ptrace_snapshot_ctx;
+	if (data_size + ctx->total_snapshot_size > MAX_TRACEE_SNAPSHOT_SIZE)
+		return -ENOMEM;
 
 	dst = NULL;
 	for (i = 0; i < ctx->snapshots_len; ++i) {
 		cur = &ctx->snapshots[i];
-		if (cur->addr == addr)
+		if (cur->addr != addr)
 			continue;
 		dst = cur;
 		break;
@@ -1099,6 +1100,7 @@ check_addr:
 
 	printk(KERN_EMERG "snapshot: incr num_active");
 	++ctx->num_active_snapshots;
+	ctx->total_snapshot_size += data_size;
 	BUG_ON(!dst);
 
 check_size:
@@ -1107,7 +1109,7 @@ check_size:
 		printk(KERN_EMERG "snapshot: size match");
 		goto take_snap;
 	}
-	printk(KERN_EMERG "snapshot: size no match");
+	printk(KERN_EMERG "snapshot: size no match. dst->size: %d, data_size: %d", dst->size, data_size);
 
 	data_tmp = krealloc(dst->data, data_size, GFP_KERNEL);
 	if (!data_tmp)
