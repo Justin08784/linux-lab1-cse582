@@ -1029,26 +1029,34 @@ ptrace_get_syscall_info(struct task_struct *child, unsigned long user_size,
 }
 #endif /* CONFIG_HAVE_ARCH_TRACEHOOK */
 
+struct mem_region {
+	unsigned long addr;
+	unsigned int size;
+};
+
 int generic_ptrace_snapshot(struct task_struct *tsk, unsigned long addr,
 			    unsigned long data)
 {
+	struct mem_region src;
 	struct ptrace_snapshot_ctx *ctx;
 	struct ptrace_snapshot *dst, *cur, *tmp;
 	size_t i;
 	unsigned int old_len, new_len;
 	void *data_tmp;
-	const unsigned int data_size = sizeof(int);
 	int copied;
 
-	printk(KERN_EMERG "snapshot: taking snapshot @%lx\n", addr);
+	if (copy_from_user(&src, data, sizeof(struct mem_region)))
+		return -EFAULT;
+
+	printk(KERN_EMERG "snapshot: taking snapshot @%lx\n", src.addr);
 	ctx = tsk->ptrace_snapshot_ctx;
-	if (data_size + ctx->total_snapshot_size > MAX_TRACEE_SNAPSHOT_SIZE)
+	if (src.size + ctx->total_snapshot_size > MAX_TRACEE_SNAPSHOT_SIZE)
 		return -ENOMEM;
 
 	dst = NULL;
 	for (i = 0; i < ctx->snapshots_len; ++i) {
 		cur = &ctx->snapshots[i];
-		if (cur->addr != addr)
+		if (cur->addr != src.addr)
 			continue;
 		dst = cur;
 		break;
@@ -1100,28 +1108,28 @@ check_addr:
 
 	printk(KERN_EMERG "snapshot: incr num_active");
 	++ctx->num_active_snapshots;
-	ctx->total_snapshot_size += data_size;
+	ctx->total_snapshot_size += src.size;
 	BUG_ON(!dst);
 
 check_size:
 	// TODO: data_size should be passed as a parameter in data
-	if (dst->size == data_size) {
+	if (dst->size == src.size) {
 		printk(KERN_EMERG "snapshot: size match");
 		goto take_snap;
 	}
-	printk(KERN_EMERG "snapshot: size no match. dst->size: %d, data_size: %d", dst->size, data_size);
+	printk(KERN_EMERG "snapshot: size no match. dst->size: %d, src.size: %d", dst->size, src.size);
 
-	data_tmp = krealloc(dst->data, data_size, GFP_KERNEL);
+	data_tmp = krealloc(dst->data, src.size, GFP_KERNEL);
 	if (!data_tmp)
 		return -ENOMEM;
 	dst->data = data_tmp;
-	dst->size = data_size;
-	dst->addr = addr;
+	dst->size = src.size;
+	dst->addr = src.addr;
 
 
 take_snap:
 	printk(KERN_EMERG "snapshot: accessing");
-	copied = ptrace_access_vm(tsk, addr, dst->data, (int) dst->size, FOLL_FORCE);
+	copied = ptrace_access_vm(tsk, src.addr, dst->data, (int) dst->size, FOLL_FORCE);
 	printk(KERN_EMERG "snapshot: access finished");
 	if (copied != dst->size)
 		return -EIO;
