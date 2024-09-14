@@ -1039,13 +1039,12 @@ int generic_ptrace_snapshot(struct task_struct *tsk, unsigned long addr,
 {
 	struct mem_region src;
 	struct ptrace_snapshot_ctx *ctx;
-	struct ptrace_snapshot *dst, *cur, *tmp;
+	struct ptrace_snapshot *dst, *cur;
 	size_t i;
-	unsigned int old_len, new_len;
 	void *data_tmp;
 	int copied;
 
-	if (copy_from_user(&src, data, sizeof(struct mem_region)))
+	if (copy_from_user(&src, (void *)data, sizeof(struct mem_region)))
 		return -EFAULT;
 
 	printk(KERN_EMERG "snapshot: taking snapshot @%lx\n", src.addr);
@@ -1071,6 +1070,8 @@ check_addr:
 
 	/* snapshot with matching address not found */
 	if (ctx->num_active_snapshots == ctx->snapshots_len) {
+		struct ptrace_snapshot *tmp;
+		unsigned int old_len, new_len;
 		/* snapshot array full */
 		printk(KERN_EMERG "snapshot: arr full");
 
@@ -1108,7 +1109,6 @@ check_addr:
 
 	printk(KERN_EMERG "snapshot: incr num_active");
 	++ctx->num_active_snapshots;
-	ctx->total_snapshot_size += src.size;
 	BUG_ON(!dst);
 
 check_size:
@@ -1123,6 +1123,8 @@ check_size:
 	if (!data_tmp)
 		return -ENOMEM;
 	dst->data = data_tmp;
+	ctx->total_snapshot_size -= dst->size;
+	ctx->total_snapshot_size += src.size;
 	dst->size = src.size;
 	dst->addr = src.addr;
 
@@ -1145,6 +1147,37 @@ take_snap:
 int generic_ptrace_restore(struct task_struct *tsk, unsigned long addr,
 			   unsigned long data)
 {
+	struct ptrace_snapshot_ctx *ctx;
+	struct ptrace_snapshot *cur, *snap;
+	size_t i;
+	int copied;
+
+	ctx = tsk->ptrace_snapshot_ctx;
+
+	snap = NULL;
+	for (i = 0; i < ctx->snapshots_len; ++i) {
+		cur = &ctx->snapshots[i];
+		if (cur->addr != addr)
+			continue;
+		snap = cur;
+		break;
+	}
+	if (!snap)
+		return -EIO;
+
+	copied = ptrace_access_vm(tsk, data, snap->data, snap->size,
+				  FOLL_FORCE | FOLL_WRITE);
+	if (copied != snap->size)
+		return -EIO;
+
+	--ctx->num_active_snapshots;
+	ctx->total_snapshot_size -= snap->size;
+
+	kfree(snap->data);
+	snap->data = NULL;
+	snap->addr = 0;
+	snap->size = 0;
+
 	return -EIO;
 }
 
@@ -1152,10 +1185,9 @@ int generic_ptrace_getsnapshot(struct task_struct *tsk, unsigned long addr,
 			       unsigned long data)
 {
 	size_t i;
-	printk(KERN_EMERG "getsnapshot: getting snapshot @%lx\n", addr);
 	struct ptrace_snapshot_ctx *ctx = tsk->ptrace_snapshot_ctx;
-
 	struct ptrace_snapshot *snap = NULL;
+	printk(KERN_EMERG "getsnapshot: getting snapshot @%lx\n", addr);
 	for (i = 0; i < ctx->snapshots_len; ++i) {
 		struct ptrace_snapshot *cur = &ctx->snapshots[i];
 		if (cur->addr != addr)
