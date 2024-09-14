@@ -33,6 +33,11 @@ void proc_child()
     exit(0);
 }
 
+struct mem_region {
+    unsigned long addr;
+    unsigned int size;
+};
+
 int main() 
 {
     int status;
@@ -45,10 +50,14 @@ int main()
     while (1) {
         // Parent process: Wait for the child to stop
         int rv;
+        struct mem_region cur;
         waitpid(child, &status, 0);
         if (WIFEXITED(status))
             break;
-        rv = ptrace(PTRACE_SNAPSHOT, child, &val, NULL);
+
+        cur.addr = &val;
+        cur.size = sizeof(int);
+        rv = ptrace(PTRACE_SNAPSHOT, child, NULL, &cur);
         if (rv == -1) {
             perror("ptrace PTRACE_SNAPSHOT");
             return 1;
