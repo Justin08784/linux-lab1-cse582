@@ -1178,7 +1178,7 @@ int generic_ptrace_restore(struct task_struct *tsk, unsigned long addr,
 	snap->addr = 0;
 	snap->size = 0;
 
-	return -EIO;
+	return 0;
 }
 
 int generic_ptrace_getsnapshot(struct task_struct *tsk, unsigned long addr,
