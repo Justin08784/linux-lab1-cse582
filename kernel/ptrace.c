@@ -1165,7 +1165,7 @@ int generic_ptrace_restore(struct task_struct *tsk, unsigned long addr,
 	if (!snap)
 		return -EIO;
 
-	copied = ptrace_access_vm(tsk, data, snap->data, snap->size,
+	copied = ptrace_access_vm(tsk, addr, snap->data, snap->size,
 				  FOLL_FORCE | FOLL_WRITE);
 	if (copied != snap->size)
 		return -EIO;
