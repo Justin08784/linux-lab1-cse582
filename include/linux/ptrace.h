@@ -8,6 +8,7 @@
 #include <linux/err.h>			/* for IS_ERR_VALUE */
 #include <linux/bug.h>			/* For BUG_ON.  */
 #include <linux/pid_namespace.h>	/* For task_active_pid_ns.  */
+#include <linux/ptrace_utilities.h>
 #include <uapi/linux/ptrace.h>
 #include <linux/seccomp.h>
 
@@ -75,20 +76,6 @@ extern void exit_ptrace(struct task_struct *tracer, struct list_head *dead);
 #define MAX_TRACEE_SNAPSHOT_NUM   64
 #define MAX_TRACEE_SNAPSHOT_SIZE  4096
 
-/*
- * Snapshot structs */
-struct ptrace_snapshot {
-	unsigned long addr;
-	unsigned int size;
-	void *data;
-};
-
-struct ptrace_snapshot_ctx {
-	struct ptrace_snapshot *snapshots;
-	unsigned int snapshots_len;
-	unsigned int num_active_snapshots;
-	unsigned int total_snapshot_size;
-};
 
 /**
  * ptrace_may_access - check whether the caller is permitted to access
@@ -247,25 +234,8 @@ static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
  */
 static inline void ptrace_release_task(struct task_struct *task)
 {
-        struct ptrace_snapshot_ctx *ctx = task->ptrace_snapshot_ctx;
-        struct ptrace_snapshot *snapshots, *cur;
-	size_t i;
 	BUG_ON(!list_empty(&task->ptraced));
-        if (ctx->snapshots_len == 0)
-                goto end_free_snapshots;
- 
-        snapshots = ctx->snapshots;
-        BUG_ON(!snapshots);
- 
-        for (i = 0; i < ctx->snapshots_len; ++i) {
-                cur = &snapshots[i];
-                if (cur->size == 0)
-                        continue;
-                kvfree(cur->data);
-        }
- 
-        kvfree(snapshots);
-end_free_snapshots:
+	free_ptrace_snapshot_ctx(task->ptrace_snapshot_ctx);
 	ptrace_unlink(task);
 	BUG_ON(!list_empty(&task->ptrace_entry));
 }

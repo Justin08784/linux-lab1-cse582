@@ -69,20 +69,10 @@ int alloc_init_snapshots(struct ptrace_snapshot_ctx *ctx)
 
 
 int insert_snapshot(struct ptrace_snapshot_ctx *ctx,
-		    unsigned long addr,
-		    unsigned int size,
-		    void *data)
+		    struct ptrace_snapshot *snap)
 {
 	struct rhashtable *ht = ctx->snapshots;
-	struct ptrace_snapshot *snap = kvmalloc(sizeof(struct ptrace_snapshot), GFP_KERNEL);
 	int rv;
-
-	if (!snap)
-		return -ENOMEM;
-
-	snap->addr = addr;
-	snap->size = size;
-	snap->data = data;
 
 	rv = rhashtable_insert_fast(ht, &snap->psnap_rhash, psnap_rhash_params);
 	if (rv) {
@@ -119,4 +109,28 @@ int remove_snapshot(struct ptrace_snapshot_ctx *ctx,
 struct ptrace_snapshot *lookup_snapshot(struct rhashtable *ht, unsigned long addr)
 {
 	return rhashtable_lookup(ht, addr, psnap_rhash_params);
+	dst = NULL;
+	for (i = 0; i < ctx->snapshots_len; ++i) {
+		cur = &ctx->snapshots[i];
+		if (cur->addr != src.addr)
+			continue;
+		dst = cur;
+		break;
+	}
+	dst = NULL;
+	for (i = 0; i < ctx->snapshots_len; ++i) {
+		cur = &ctx->snapshots[i];
+		if (cur->addr != src.addr)
+			continue;
+		dst = cur;
+		break;
+	}
+	dst = NULL;
+	for (i = 0; i < ctx->snapshots_len; ++i) {
+		cur = &ctx->snapshots[i];
+		if (cur->addr != src.addr)
+			continue;
+		dst = cur;
+		break;
+	}
 }
