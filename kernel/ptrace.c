@@ -1040,8 +1040,7 @@ int generic_ptrace_snapshot(struct task_struct *tsk, unsigned long addr,
 {
 	struct mem_region src;
 	struct ptrace_snapshot_ctx *ctx;
-	struct ptrace_snapshot *dst, *cur;
-	size_t i;
+	struct ptrace_snapshot *dst;
 	void *data_tmp;
 	int copied, rv;
 
@@ -1069,18 +1068,18 @@ check_addr:
 	dst = kvmalloc(sizeof(struct ptrace_snapshot), GFP_KERNEL);
 	if (!dst)
 		return -ENOMEM;
-	dst.addr = src.addr;
-	dst.size = src.size;
-	dst.data = kvmalloc(src.size, GFP_KERNEL);
+	dst->addr = src.addr;
+	dst->size = src.size;
+	dst->data = kvmalloc(src.size, GFP_KERNEL);
 
-	if (!dst.data) {
+	if (!dst->data) {
 		kvfree(dst);
 		return -ENOMEM;
 	}
 
 	rv = insert_snapshot(ctx, dst);
 	if (rv) {
-		kvfree(dsts.data);
+		kvfree(dst->data);
 		kvfree(dst);
 		return rv;
 	}
@@ -1125,12 +1124,11 @@ int generic_ptrace_restore(struct task_struct *tsk, unsigned long addr,
 			   unsigned long data)
 {
 	struct ptrace_snapshot_ctx *ctx;
-	struct ptrace_snapshot *cur, *snap;
-	size_t i;
+	struct ptrace_snapshot *snap;
 	int copied;
 
 	ctx = tsk->ptrace_snapshot_ctx;
-	snap = lookup_snapshot(ctx->snapshots, src.addr);
+	snap = lookup_snapshot(ctx->snapshots, addr);
 	if (!snap)
 		return -EIO;
 
@@ -1139,7 +1137,7 @@ int generic_ptrace_restore(struct task_struct *tsk, unsigned long addr,
 	if (copied != snap->size)
 		return -EIO;
 
-	if (remove_snapshot(ctx->snapshots, snap))
+	if (remove_snapshot(ctx, snap))
 		return -EIO;
 
 	kvfree(snap->data);
@@ -1151,7 +1149,6 @@ int generic_ptrace_restore(struct task_struct *tsk, unsigned long addr,
 int generic_ptrace_getsnapshot(struct task_struct *tsk, unsigned long addr,
 			       unsigned long data)
 {
-	size_t i;
 	struct ptrace_snapshot_ctx *ctx = tsk->ptrace_snapshot_ctx;
 	struct ptrace_snapshot *snap = NULL;
 	printk(KERN_EMERG "getsnapshot: getting snapshot @%lx\n", addr);

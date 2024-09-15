@@ -1,4 +1,7 @@
-// #include <linux/types.h>
+/* SPDX-License-Identifier: GPL-2.0 */
+#ifndef _LINUX_PTRACE_UTILITIES_H
+#define _LINUX_PTRACE_UTILITIES_H
+
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/rhashtable.h>
@@ -28,7 +31,7 @@ static const struct rhashtable_params psnap_rhash_params = {
 };
 
 
-void free_ptrace_snapshot_ctx(struct ptrace_snapshot_ctx *ctx)
+static inline void free_ptrace_snapshot_ctx(struct ptrace_snapshot_ctx *ctx)
 {
 	struct bucket_table *tbl;
 	struct rhashtable *ht = ctx->snapshots;
@@ -55,20 +58,20 @@ void free_ptrace_snapshot_ctx(struct ptrace_snapshot_ctx *ctx)
 	rhashtable_destroy(ht);
 }
 
-int alloc_init_snapshots(struct ptrace_snapshot_ctx *ctx)
+static inline int alloc_init_snapshots(struct ptrace_snapshot_ctx *ctx)
 {
 	void *tmp;
 	int rv;
 	tmp = kvmalloc(sizeof(struct rhashtable), GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
-	rv = rhashtable_init(tmp, psnap_rhash_params);
+	rv = rhashtable_init(tmp, &psnap_rhash_params);
 	ctx->snapshots = tmp;
 	return rv;
 }
 
 
-int insert_snapshot(struct ptrace_snapshot_ctx *ctx,
+static inline int insert_snapshot(struct ptrace_snapshot_ctx *ctx,
 		    struct ptrace_snapshot *snap)
 {
 	struct rhashtable *ht = ctx->snapshots;
@@ -82,19 +85,19 @@ int insert_snapshot(struct ptrace_snapshot_ctx *ctx,
 	}
 
 	++ctx->num_active_snapshots;
-	ctx->total_snapshot_size += size;
+	ctx->total_snapshot_size += snap->size;
 
 	return 0;
 }
 
 
-int remove_snapshot(struct ptrace_snapshot_ctx *ctx,
+static inline int remove_snapshot(struct ptrace_snapshot_ctx *ctx,
 		    struct ptrace_snapshot *snap)
 {
 	struct rhashtable *ht = ctx->snapshots;
 	int rv = rhashtable_remove_fast(ht, &snap->psnap_rhash, psnap_rhash_params);
 
-	if (rv == -ENONENT)
+	if (rv == -ENOENT)
 		return rv;
 
 	--ctx->num_active_snapshots;
@@ -106,31 +109,9 @@ int remove_snapshot(struct ptrace_snapshot_ctx *ctx,
 	return 0;
 }
 
-struct ptrace_snapshot *lookup_snapshot(struct rhashtable *ht, unsigned long addr)
+static inline struct ptrace_snapshot *lookup_snapshot(struct rhashtable *ht, unsigned long addr)
 {
-	return rhashtable_lookup(ht, addr, psnap_rhash_params);
-	dst = NULL;
-	for (i = 0; i < ctx->snapshots_len; ++i) {
-		cur = &ctx->snapshots[i];
-		if (cur->addr != src.addr)
-			continue;
-		dst = cur;
-		break;
-	}
-	dst = NULL;
-	for (i = 0; i < ctx->snapshots_len; ++i) {
-		cur = &ctx->snapshots[i];
-		if (cur->addr != src.addr)
-			continue;
-		dst = cur;
-		break;
-	}
-	dst = NULL;
-	for (i = 0; i < ctx->snapshots_len; ++i) {
-		cur = &ctx->snapshots[i];
-		if (cur->addr != src.addr)
-			continue;
-		dst = cur;
-		break;
-	}
+	unsigned long *key = &addr;
+	return rhashtable_lookup(ht, key, psnap_rhash_params);
 }
+#endif
