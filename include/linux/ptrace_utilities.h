@@ -35,8 +35,10 @@ void free_ptrace_snapshot_ctx(struct ptrace_snapshot_ctx *ctx)
 	int bkt;
 
 	tbl = rht_dereference(ht->tbl, ht);
- 
-        BUG_ON(!tbl);
+	if (!tbl) {
+		printk(KERN_ERR "free_ptrace_snapshot_ctx: table is NULL.\n");
+		return;
+	}
 
 	for (bkt = 0; bkt < tbl->size; ++bkt) {
 		struct ptrace_snapshot *cur;
@@ -46,7 +48,7 @@ void free_ptrace_snapshot_ctx(struct ptrace_snapshot_ctx *ctx)
 		rht_for_each_entry(cur, pos, tbl, bkt, psnap_rhash) {
 			printk(KERN_EMERG "free_ptrace_snapshot_ctx: cur->size: %d\n", cur->size);
 
-			kfree(cur);
+			kvfree(cur);
 		}
 	}
 	
@@ -56,11 +58,13 @@ void free_ptrace_snapshot_ctx(struct ptrace_snapshot_ctx *ctx)
 int alloc_init_snapshots(struct ptrace_snapshot_ctx *ctx)
 {
 	void *tmp;
-	tmp = kmalloc(sizeof(struct rhashtable), GFP_KERNEL);
+	int rv;
+	tmp = kvmalloc(sizeof(struct rhashtable), GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
-	rhashtable_init(tmp, psnap_rhash_params);
+	rv = rhashtable_init(tmp, psnap_rhash_params);
 	ctx->snapshots = tmp;
+	return rv;
 }
 
 
@@ -81,10 +85,10 @@ int insert_snapshot(struct ptrace_snapshot_ctx *ctx,
 	snap->data = data;
 
 	rv = rhashtable_insert_fast(ht, &snap->psnap_rhash, psnap_rhash_params);
-	if (ret) {
-		printk(KERN_ERR "Failed to insert snapshot into rhashtable: %d\n", ret);
+	if (rv) {
+		printk(KERN_ERR "Failed to insert snapshot into rhashtable: %d\n", rv);
 		kvfree(snap);
-		return ret;
+		return rv;
 	}
 
 	++ctx->num_active_snapshots;
@@ -112,7 +116,7 @@ int remove_snapshot(struct ptrace_snapshot_ctx *ctx,
 	return 0;
 }
 
-bool lookup_snapshot(struct ptrace_snapshot *ht, unsigned long addr)
+struct ptrace_snapshot *lookup_snapshot(struct rhashtable *ht, unsigned long addr)
 {
 	return rhashtable_lookup(ht, addr, psnap_rhash_params);
 }
