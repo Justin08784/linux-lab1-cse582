@@ -10,6 +10,8 @@
 #include <linux/pid_namespace.h>	/* For task_active_pid_ns.  */
 #include <uapi/linux/ptrace.h>
 #include <linux/seccomp.h>
+#include <linux/rhashtable.h>
+#include <linux/list.h>
 
 /* Add sp to seccomp_data, as seccomp is user API, we don't want to modify it */
 struct syscall_info {
@@ -78,6 +80,8 @@ extern void exit_ptrace(struct task_struct *tracer, struct list_head *dead);
 /*
  * Snapshot structs */
 struct ptrace_snapshot {
+	struct rhash_head ht_node;
+	struct list_head lst;
 	unsigned long addr;
 	unsigned int size;
 	void *data;
@@ -85,9 +89,17 @@ struct ptrace_snapshot {
 
 struct ptrace_snapshot_ctx {
 	struct ptrace_snapshot *snapshots;
+	struct rhashtable snap_ht;
+	struct list_head snap_lst;
 	unsigned int snapshots_len;
 	unsigned int num_active_snapshots;
 	unsigned int total_snapshot_size;
+};
+
+static const struct rhashtable_params psnap_rhash_params = {
+	.key_len		= sizeof_field(struct ptrace_snapshot, addr),
+	.key_offset		= offsetof(struct ptrace_snapshot, addr),
+	.head_offset		= offsetof(struct ptrace_snapshot, ht_node),
 };
 
 /**
@@ -219,6 +231,7 @@ static inline void ptrace_event_pid(int event, struct pid *pid)
  */
 static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
 {
+	int err;
 	INIT_LIST_HEAD(&child->ptrace_entry);
 	INIT_LIST_HEAD(&child->ptraced);
 	child->jobctl = 0;
@@ -226,6 +239,8 @@ static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
 	child->parent = child->real_parent;
 	child->ptrace_snapshot_ctx = kvzalloc(sizeof(struct ptrace_snapshot_ctx), GFP_KERNEL);
 	BUG_ON(!child->ptrace_snapshot_ctx);	
+	err = rhashtable_init(&child->ptrace_snapshot_ctx->snap_ht, &psnap_rhash_params);
+	printk(KERN_EMERG "ptrace_init_task: rhashtable_init rv: %d\n", err);
 	if (unlikely(ptrace) && current->ptrace) {
 		child->ptrace = current->ptrace;
 		__ptrace_link(child, current->parent, current->ptracer_cred);
@@ -265,6 +280,7 @@ static inline void ptrace_release_task(struct task_struct *task)
         }
  
         kvfree(snapshots);
+	rhashtable_destroy(&ctx->snap_ht);
 end_free_snapshots:
 	ptrace_unlink(task);
 	BUG_ON(!list_empty(&task->ptrace_entry));
