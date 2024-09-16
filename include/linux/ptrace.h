@@ -77,39 +77,8 @@ extern void exit_ptrace(struct task_struct *tracer, struct list_head *dead);
 #define MAX_TRACEE_SNAPSHOT_NUM   64
 #define MAX_TRACEE_SNAPSHOT_SIZE  4096
 
-/*
- * Snapshot structs */
-struct ptrace_snapshot {
-	struct rhash_head ht_node;
-	struct list_head lst;
-	unsigned long addr;
-	unsigned int size;
-	void *data;
-};
-
-struct ptrace_snapshot_ctx {
-	struct ptrace_snapshot *snapshots;
-	struct rhashtable snap_ht;
-	struct list_head snap_lst;
-	unsigned int snapshots_len;
-	unsigned int num_active_snapshots;
-	unsigned int total_snapshot_size;
-};
-
-static const struct rhashtable_params psnap_rhash_params = {
-	.key_len		= sizeof_field(struct ptrace_snapshot, addr),
-	.key_offset		= offsetof(struct ptrace_snapshot, addr),
-	.head_offset		= offsetof(struct ptrace_snapshot, ht_node),
-};
-
-int alloc_init_psnap_ctx(struct ptrace_snapshot_ctx **ctx);
+struct ptrace_snapshot_ctx;
 void free_psnap_ctx(struct ptrace_snapshot_ctx *ctx);
-int insert_snapshot(struct ptrace_snapshot_ctx *ctx,
-		    struct ptrace_snapshot *snap);
-int remove_snapshot(struct ptrace_snapshot_ctx *ctx,
-		    struct ptrace_snapshot *snap);
-struct ptrace_snapshot *lookup_snapshot(struct rhashtable *ht,
-					unsigned long addr);
 
 /**
  * ptrace_may_access - check whether the caller is permitted to access

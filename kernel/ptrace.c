@@ -36,36 +36,44 @@
 #include <asm/syscall.h>	/* for syscall_get_* */
 
 #define INITIAL_SNAPSHOTS_LEN 8
+/*
+ * Snapshot structs */
+struct ptrace_snapshot {
+	unsigned long addr;
+	unsigned int size;
+	void *data;
+};
+
+struct ptrace_snapshot_ctx {
+	struct ptrace_snapshot *snapshots;
+	unsigned int snapshots_len;
+	unsigned int num_active_snapshots;
+	unsigned int total_snapshot_size;
+};
 
 
 int alloc_init_psnap_ctx(struct ptrace_snapshot_ctx **ctx)
 {
 	struct ptrace_snapshot_ctx *tmp_ctx;
 	struct ptrace_snapshot *tmp_snapshots;
-	int err;
 
 	tmp_ctx = kvzalloc(sizeof(struct ptrace_snapshot_ctx), GFP_KERNEL);
 	if (!tmp_ctx)
-		return -ENOMEM;
-
-	err = rhashtable_init(&tmp_ctx->snap_ht, &psnap_rhash_params);
-	if (err)
-		goto free_ctx;
+		goto fail_alloc_ctx;
 
 	tmp_snapshots = kvzalloc(INITIAL_SNAPSHOTS_LEN * sizeof(struct ptrace_snapshot), GFP_KERNEL);
 	if (!tmp_snapshots)
-		goto free_snap_ht;
+		goto fail_alloc_snapshots;
 
 	tmp_ctx->snapshots = tmp_snapshots;
-	tmp_ctx->snapshots_len  = INITIAL_SNAPSHOTS_LEN;
+	tmp_ctx->snapshots_len = INITIAL_SNAPSHOTS_LEN;
 	*ctx = tmp_ctx;
 	return 0;
 
-free_snap_ht:
-	rhashtable_destroy(&tmp_ctx->snap_ht);
-free_ctx:
+fail_alloc_snapshots:
 	kvfree(tmp_ctx);
-	printk(KERN_ERR "alloc_init_psnap_ctx: alloc/init error\n");
+fail_alloc_ctx:
+	printk(KERN_ERR "alloc_init_psnap_ctx: alloc error\n");
 	*ctx = NULL;
 	return -ENOMEM;
 
@@ -94,7 +102,6 @@ void free_psnap_ctx(struct ptrace_snapshot_ctx *ctx)
         kvfree(snapshots);
 
 end_free_snapshots:
-	rhashtable_destroy(&ctx->snap_ht);
 	kvfree(ctx);
 	return;
 }
@@ -102,16 +109,39 @@ end_free_snapshots:
 int insert_snapshot(struct ptrace_snapshot_ctx *ctx,
 		    struct ptrace_snapshot *snap)
 {
+	// struct ptrace_snapshot *cur;
+	// size_t i;
+
+	++ctx->num_active_snapshots;
+	ctx->total_snapshot_size += snap->size;
+
+	return 0;
 	return -1;
 }
 int remove_snapshot(struct ptrace_snapshot_ctx *ctx,
 		    struct ptrace_snapshot *snap)
 {
+	--ctx->num_active_snapshots;
+	ctx->total_snapshot_size -= snap->size;
+	kvfree(snap->data);
+	kvfree(snap);
+
+	return 0;
 	return -1;
 }
-struct ptrace_snapshot *lookup_snapshot(struct rhashtable *ht,
+
+struct ptrace_snapshot *lookup_snapshot(struct ptrace_snapshot_ctx *ctx,
 					unsigned long addr)
 {
+	struct ptrace_snapshot *cur;
+	unsigned int i;
+
+	for (i = 0; i < ctx->snapshots_len; ++i) {
+		cur = &ctx->snapshots[i];
+		if (cur->addr == addr)
+			return cur;
+	}
+
 	return NULL;
 }
 
@@ -1137,17 +1167,12 @@ int generic_ptrace_snapshot(struct task_struct *tsk, unsigned long addr,
 
 	printk(KERN_EMERG "snapshot: taking snapshot @%lx\n", src.addr);
 	ctx = tsk->ptrace_snapshot_ctx;
+	if (src.size == 0)
+		return -EFAULT;
 	if (src.size + ctx->total_snapshot_size > MAX_TRACEE_SNAPSHOT_SIZE)
 		return -ENOMEM;
 
-	dst = NULL;
-	for (i = 0; i < ctx->snapshots_len; ++i) {
-		cur = &ctx->snapshots[i];
-		if (cur->addr != src.addr)
-			continue;
-		dst = cur;
-		break;
-	}
+	dst = lookup_snapshot(ctx, addr);
 
 check_addr:
 	if (dst) {
@@ -1236,22 +1261,14 @@ int generic_ptrace_restore(struct task_struct *tsk, unsigned long addr,
 			   unsigned long data)
 {
 	struct ptrace_snapshot_ctx *ctx;
-	struct ptrace_snapshot *cur, *snap;
-	size_t i;
+	struct ptrace_snapshot *snap;
 	int copied;
 
 	ctx = tsk->ptrace_snapshot_ctx;
 	if (!ctx)
 		return -EFAULT;
 
-	snap = NULL;
-	for (i = 0; i < ctx->snapshots_len; ++i) {
-		cur = &ctx->snapshots[i];
-		if (cur->addr != addr)
-			continue;
-		snap = cur;
-		break;
-	}
+	snap = lookup_snapshot(ctx, addr);
 	if (!snap)
 		return -EIO;
 
@@ -1274,21 +1291,15 @@ int generic_ptrace_restore(struct task_struct *tsk, unsigned long addr,
 int generic_ptrace_getsnapshot(struct task_struct *tsk, unsigned long addr,
 			       unsigned long data)
 {
-	size_t i;
 	struct ptrace_snapshot_ctx *ctx = tsk->ptrace_snapshot_ctx;
 	struct ptrace_snapshot *snap = NULL;
 	printk(KERN_EMERG "getsnapshot: getting snapshot @%lx\n", addr);
 	if (!ctx)
 		return -EFAULT;
-	for (i = 0; i < ctx->snapshots_len; ++i) {
-		struct ptrace_snapshot *cur = &ctx->snapshots[i];
-		if (cur->addr != addr)
-			continue;
-		snap = cur;
-	}
 
+	snap = lookup_snapshot(ctx, addr);
 	if (!snap)
-		return -EIO;
+		return -ENOENT;
 	printk(KERN_EMERG "getsnapshot: snap->size = %d\n", snap->size);
 	printk(KERN_EMERG "getsnapshot: snap->addr = %lx\n", snap->addr);
 	printk(KERN_EMERG "getsnapshot: snap->data = %p\n", snap->data);
