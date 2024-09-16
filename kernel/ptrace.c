@@ -49,7 +49,7 @@ int alloc_init_psnap_ctx(struct ptrace_snapshot_ctx **ctx)
 		return -ENOMEM;
 
 	err = rhashtable_init(&tmp_ctx->snap_ht, &psnap_rhash_params);
-	if (!err)
+	if (err)
 		goto free_ctx;
 
 	tmp_snapshots = kvzalloc(INITIAL_SNAPSHOTS_LEN * sizeof(struct ptrace_snapshot), GFP_KERNEL);
