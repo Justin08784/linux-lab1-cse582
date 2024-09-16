@@ -108,17 +108,18 @@ end_free_snapshots:
 
 struct ptrace_snapshot *get_free_psnap(struct ptrace_snapshot_ctx *ctx)
 {
-	struct ptrace_snapshot_ctx *rv;
+	struct ptrace_snapshot *rv;
 
 	rv = NULL;
 	if (ctx->num_active_snapshots == ctx->snapshots_len) {
-		struct ptrace_snapshot *tmp;
+		struct ptrace_snapshot *cur, *tmp;
 		unsigned int old_len, new_len;
+		size_t i;
 		/* snapshot array full */
 		printk(KERN_EMERG "snapshot: arr full");
 
 		if (ctx->snapshots_len == MAX_TRACEE_SNAPSHOT_NUM)
-			return -ENOMEM;
+			return NULL;
 
 		old_len = ctx->snapshots_len;
 		if (old_len == 0)
@@ -129,7 +130,7 @@ struct ptrace_snapshot *get_free_psnap(struct ptrace_snapshot_ctx *ctx)
 			       new_len * sizeof(struct ptrace_snapshot),
 			       GFP_KERNEL);
 		if (!tmp)
-			return -ENOMEM;
+			return NULL;
 		for (i = old_len; i < new_len; ++i) {
 			cur = &tmp[i];
 			cur->data = NULL;
@@ -141,9 +142,10 @@ struct ptrace_snapshot *get_free_psnap(struct ptrace_snapshot_ctx *ctx)
 
 		rv = &ctx->snapshots[old_len];
 	} else {
+		size_t i;
+		struct ptrace_snapshot *cur;
 		printk(KERN_EMERG "snapshot: arr not full");
 
-		struct ptrace_snapshot *cur;
 		for (i = 0; i < ctx->snapshots_len; ++i) {
 			cur = &ctx->snapshots[i];
 			if (cur->size != 0)
@@ -1187,8 +1189,8 @@ int generic_ptrace_snapshot(struct task_struct *tsk, unsigned long addr,
 {
 	struct mem_region src;
 	struct ptrace_snapshot_ctx *ctx;
-	struct ptrace_snapshot *dst, *cur;
-	size_t i;
+	struct ptrace_snapshot *dst;
+	// int size_delta = 0;
 	void *data_tmp;
 	int copied;
 
@@ -1227,7 +1229,7 @@ check_addr:
 	
 	printk(KERN_EMERG "snapshot: incr num_active");
 	++ctx->num_active_snapshots;
-	ctx->total_snapshot_size += snap->size;
+	ctx->total_snapshot_size += src.size;
 
 check_size:
 	if (dst->size == src.size) {
