@@ -240,7 +240,6 @@ static inline void ptrace_event_pid(int event, struct pid *pid)
  */
 static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
 {
-	int err;
 	INIT_LIST_HEAD(&child->ptrace_entry);
 	INIT_LIST_HEAD(&child->ptraced);
 	child->jobctl = 0;

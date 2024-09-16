@@ -52,11 +52,12 @@ int alloc_init_psnap_ctx(struct ptrace_snapshot_ctx **ctx)
 	if (!err)
 		goto free_ctx;
 
-	tmp_snapshots = kvmalloc(sizeof(INITIAL_SNAPSHOTS_LEN * sizeof(struct ptrace_snapshot), GFP_KERNEL);
+	tmp_snapshots = kvzalloc(INITIAL_SNAPSHOTS_LEN * sizeof(struct ptrace_snapshot), GFP_KERNEL);
 	if (!tmp_snapshots)
 		goto free_snap_ht;
 
-	tmp_ctx->snapshots = tmp;
+	tmp_ctx->snapshots = tmp_snapshots;
+	tmp_ctx->snapshots_len  = INITIAL_SNAPSHOTS_LEN;
 	*ctx = tmp_ctx;
 	return 0;
 
@@ -64,7 +65,7 @@ free_snap_ht:
 	rhashtable_destroy(&tmp_ctx->snap_ht);
 free_ctx:
 	kvfree(tmp_ctx);
-	printk(KERN_ERROR "alloc_init_psnap_ctx: alloc/init error\n" );
+	printk(KERN_ERR "alloc_init_psnap_ctx: alloc/init error\n");
 	*ctx = NULL;
 	return -ENOMEM;
 
@@ -109,7 +110,7 @@ int remove_snapshot(struct ptrace_snapshot_ctx *ctx,
 	return -1;
 }
 struct ptrace_snapshot *lookup_snapshot(struct rhashtable *ht,
-					unsigned long addr);
+					unsigned long addr)
 {
 	return NULL;
 }
