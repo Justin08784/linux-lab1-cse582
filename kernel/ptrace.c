@@ -102,17 +102,45 @@ end_free_snapshots:
 int insert_snapshot(struct ptrace_snapshot_ctx *ctx,
 		    struct ptrace_snapshot *snap)
 {
-	return -1;
+	struct rhashtable *ht = &ctx->snap_ht;
+	int rv;
+
+	rv = rhashtable_insert_fast(ht, &snap->ht_node, psnap_rhash_params);
+	if (rv) {
+		printk(KERN_ERR "Failed to insert snapshot into rhashtable: %d\n", rv);
+		kvfree(snap);
+		return rv;
+	}
+
+	++ctx->num_active_snapshots;
+	ctx->total_snapshot_size += snap->size;
+
+	return 0;
 }
+
 int remove_snapshot(struct ptrace_snapshot_ctx *ctx,
 		    struct ptrace_snapshot *snap)
 {
-	return -1;
+	struct rhashtable *ht = &ctx->snap_ht;
+	int rv = rhashtable_remove_fast(ht, &snap->ht_node, psnap_rhash_params);
+
+	if (rv == -ENOENT)
+		return rv;
+
+	--ctx->num_active_snapshots;
+	ctx->total_snapshot_size -= snap->size;
+
+	kvfree(snap->data);
+	kvfree(snap);
+
+	return 0;
 }
+
 struct ptrace_snapshot *lookup_snapshot(struct rhashtable *ht,
 					unsigned long addr)
 {
-	return NULL;
+	unsigned long *key = &addr;
+	return rhashtable_lookup(ht, key, psnap_rhash_params);
 }
 
 
