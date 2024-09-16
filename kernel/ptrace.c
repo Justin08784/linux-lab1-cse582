@@ -51,6 +51,32 @@ struct ptrace_snapshot_ctx {
 	unsigned int total_snapshot_size;
 };
 
+void debug_psnap(struct ptrace_snapshot *snap)
+{
+	printk(KERN_EMERG "* {addr: %ld, size: %d, data: %p}\n",
+	       snap->addr,
+	       snap->size,
+	       snap->data);
+}
+
+void debug_psnap_ctx(struct ptrace_snapshot_ctx *ctx)
+{
+	size_t i;
+	printk(KERN_EMERG "psnap_ctx @ %p : {\n"
+	        "snapshots_len: %d\n"
+	        "num_active: %d\n"
+	        "total_size: %d\n"
+		"snapshots @ %p\n",
+		ctx,
+		ctx->snapshots_len,
+		ctx->num_active_snapshots,
+		ctx->total_snapshot_size,
+		ctx->snapshots);
+	for (i = 0; i < ctx->snapshots_len; ++i)
+		debug_psnap(&ctx->snapshots[i]);
+	printk(KERN_EMERG "}\n");
+}
+
 
 int alloc_init_psnap_ctx(struct ptrace_snapshot_ctx **ctx)
 {
@@ -1263,6 +1289,7 @@ take_snap:
 	printk(KERN_EMERG "snapshot: dst->addr = %lx\n", dst->addr);
 	printk(KERN_EMERG "snapshot: dst->data = %p\n", dst->data);
 	printk(KERN_EMERG "snapshot: *(dst->data) = %x\n", *(int *)dst->data);
+	debug_psnap_ctx(ctx);
 	return 0;
 }
 
@@ -1294,6 +1321,7 @@ int generic_ptrace_restore(struct task_struct *tsk, unsigned long addr,
 	snap->addr = 0;
 	snap->size = 0;
 
+	debug_psnap_ctx(ctx);
 	return 0;
 }
 
@@ -1316,6 +1344,7 @@ int generic_ptrace_getsnapshot(struct task_struct *tsk, unsigned long addr,
 	printk(KERN_EMERG "getsnapshot: snap->data = %p\n", snap->data);
 	printk(KERN_EMERG "getsnapshot: *(dst->data) = %x\n", *(int *)snap->data);
 
+	debug_psnap_ctx(ctx);
 	return copy_to_user((void *)data, snap->data, snap->size);
 }
 
