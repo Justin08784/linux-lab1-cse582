@@ -168,7 +168,6 @@ int remove_snapshot(struct ptrace_snapshot_ctx *ctx,
 	kvfree(snap);
 
 	return 0;
-	return -1;
 }
 
 struct ptrace_snapshot *lookup_snapshot(struct ptrace_snapshot_ctx *ctx,
@@ -1187,11 +1186,11 @@ struct mem_region {
 int generic_ptrace_snapshot(struct task_struct *tsk, unsigned long addr,
 			    unsigned long data)
 {
-	struct mem_region src;
 	struct ptrace_snapshot_ctx *ctx;
+	struct mem_region src;
 	struct ptrace_snapshot *dst;
-	// int size_delta = 0;
-	void *data_tmp;
+	int total_size_delta = 0;
+	int num_active_delta = 0;
 	int copied;
 
 	if (!tsk->ptrace_snapshot_ctx) {
@@ -1205,16 +1204,14 @@ int generic_ptrace_snapshot(struct task_struct *tsk, unsigned long addr,
 
 	if (copy_from_user(&src, (void *)data, sizeof(struct mem_region)))
 		return -EFAULT;
-
 	printk(KERN_EMERG "snapshot: taking snapshot @%lx\n", src.addr);
-	ctx = tsk->ptrace_snapshot_ctx;
 	if (src.size == 0)
 		return -EFAULT;
 	if (src.size + ctx->total_snapshot_size > MAX_TRACEE_SNAPSHOT_SIZE)
 		return -ENOMEM;
 
 
-check_addr:
+// check_addr:
 	dst = lookup_snapshot(ctx, addr);
 	if (dst) {
 		printk(KERN_EMERG "snapshot: addr match found");
@@ -1228,8 +1225,7 @@ check_addr:
 		return -ENOMEM;
 	
 	printk(KERN_EMERG "snapshot: incr num_active");
-	++ctx->num_active_snapshots;
-	ctx->total_snapshot_size += src.size;
+	num_active_delta = 1;
 
 check_size:
 	if (dst->size == src.size) {
@@ -1238,22 +1234,29 @@ check_size:
 	}
 	printk(KERN_EMERG "snapshot: size no match. dst->size: %d, src.size: %d", dst->size, src.size);
 
-	data_tmp = krealloc(dst->data, src.size, GFP_KERNEL);
-	if (!data_tmp)
+	dst->data = krealloc(dst->data, src.size, GFP_KERNEL);
+	if (!dst->data)
 		return -ENOMEM;
-	dst->data = data_tmp;
-	ctx->total_snapshot_size -= dst->size;
-	ctx->total_snapshot_size += src.size;
+	total_size_delta -= dst->size;
+	total_size_delta += src.size;
 	dst->size = src.size;
 	dst->addr = src.addr;
-
 
 take_snap:
 	printk(KERN_EMERG "snapshot: accessing");
 	copied = ptrace_access_vm(tsk, src.addr, dst->data, (int) dst->size, FOLL_FORCE);
 	printk(KERN_EMERG "snapshot: access finished");
-	if (copied != dst->size)
+	if (copied != dst->size) {
+		kvfree(dst->data);
+
+		dst->data = NULL;
+		dst->size = 0;
+		dst->addr = 0;
 		return -EIO;
+	}
+
+	ctx->total_snapshot_size += total_size_delta;
+	ctx->num_active_snapshots += num_active_delta;
 
 	printk(KERN_EMERG "snapshot: data = %p\n", (void *)data);
 	printk(KERN_EMERG "snapshot: dst->size = %d\n", dst->size);
@@ -1286,7 +1289,7 @@ int generic_ptrace_restore(struct task_struct *tsk, unsigned long addr,
 	--ctx->num_active_snapshots;
 	ctx->total_snapshot_size -= snap->size;
 
-	kfree(snap->data);
+	kvfree(snap->data);
 	snap->data = NULL;
 	snap->addr = 0;
 	snap->size = 0;
@@ -1297,9 +1300,11 @@ int generic_ptrace_restore(struct task_struct *tsk, unsigned long addr,
 int generic_ptrace_getsnapshot(struct task_struct *tsk, unsigned long addr,
 			       unsigned long data)
 {
-	struct ptrace_snapshot_ctx *ctx = tsk->ptrace_snapshot_ctx;
-	struct ptrace_snapshot *snap = NULL;
+	struct ptrace_snapshot_ctx *ctx;
+	struct ptrace_snapshot *snap;
 	printk(KERN_EMERG "getsnapshot: getting snapshot @%lx\n", addr);
+	
+	ctx = tsk->ptrace_snapshot_ctx;
 	if (!ctx)
 		return -EFAULT;
 
