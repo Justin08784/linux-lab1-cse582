@@ -106,18 +106,57 @@ end_free_snapshots:
 	return;
 }
 
-int insert_snapshot(struct ptrace_snapshot_ctx *ctx,
-		    struct ptrace_snapshot *snap)
+struct ptrace_snapshot *get_free_psnap(struct ptrace_snapshot_ctx *ctx)
 {
-	// struct ptrace_snapshot *cur;
-	// size_t i;
+	struct ptrace_snapshot_ctx *rv;
 
-	++ctx->num_active_snapshots;
-	ctx->total_snapshot_size += snap->size;
+	rv = NULL;
+	if (ctx->num_active_snapshots == ctx->snapshots_len) {
+		struct ptrace_snapshot *tmp;
+		unsigned int old_len, new_len;
+		/* snapshot array full */
+		printk(KERN_EMERG "snapshot: arr full");
 
-	return 0;
-	return -1;
+		if (ctx->snapshots_len == MAX_TRACEE_SNAPSHOT_NUM)
+			return -ENOMEM;
+
+		old_len = ctx->snapshots_len;
+		if (old_len == 0)
+			printk(KERN_EMERG "get_free_psnap: get_old_len = 0. How could this be?");
+		new_len = old_len ? 2 * old_len : INITIAL_SNAPSHOTS_LEN;
+
+		tmp = krealloc(ctx->snapshots,
+			       new_len * sizeof(struct ptrace_snapshot),
+			       GFP_KERNEL);
+		if (!tmp)
+			return -ENOMEM;
+		for (i = old_len; i < new_len; ++i) {
+			cur = &tmp[i];
+			cur->data = NULL;
+			cur->addr = 0;
+			cur->size = 0;
+		}
+		ctx->snapshots = tmp;
+		ctx->snapshots_len = new_len;
+
+		rv = &ctx->snapshots[old_len];
+	} else {
+		printk(KERN_EMERG "snapshot: arr not full");
+
+		struct ptrace_snapshot *cur;
+		for (i = 0; i < ctx->snapshots_len; ++i) {
+			cur = &ctx->snapshots[i];
+			if (cur->size != 0)
+				continue;
+			rv = cur;
+			break;
+		}
+	}
+
+
+	return rv;
 }
+
 int remove_snapshot(struct ptrace_snapshot_ctx *ctx,
 		    struct ptrace_snapshot *snap)
 {
@@ -1172,9 +1211,9 @@ int generic_ptrace_snapshot(struct task_struct *tsk, unsigned long addr,
 	if (src.size + ctx->total_snapshot_size > MAX_TRACEE_SNAPSHOT_SIZE)
 		return -ENOMEM;
 
-	dst = lookup_snapshot(ctx, addr);
 
 check_addr:
+	dst = lookup_snapshot(ctx, addr);
 	if (dst) {
 		printk(KERN_EMERG "snapshot: addr match found");
 		goto check_size;
@@ -1182,50 +1221,15 @@ check_addr:
 	printk(KERN_EMERG "snapshot: addr no match");
 
 	/* snapshot with matching address not found */
-	if (ctx->num_active_snapshots == ctx->snapshots_len) {
-		struct ptrace_snapshot *tmp;
-		unsigned int old_len, new_len;
-		/* snapshot array full */
-		printk(KERN_EMERG "snapshot: arr full");
-
-		if (ctx->snapshots_len == MAX_TRACEE_SNAPSHOT_NUM)
-			return -ENOMEM;
-
-		old_len = ctx->snapshots_len;
-		new_len = old_len ? 2 * old_len : INITIAL_SNAPSHOTS_LEN;
-
-		tmp = krealloc(ctx->snapshots,
-			       new_len * sizeof(struct ptrace_snapshot),
-			       GFP_KERNEL);
-		if (!tmp)
-			return -ENOMEM;
-		for (i = old_len; i < new_len; ++i) {
-			cur = &tmp[i];
-			cur->data = NULL;
-			cur->addr = 0;
-			cur->size = 0;
-		}
-		ctx->snapshots = tmp;
-		ctx->snapshots_len = new_len;
-
-		dst = &ctx->snapshots[old_len];
-	} else {
-		printk(KERN_EMERG "snapshot: arr not full");
-		for (i = 0; i < ctx->snapshots_len; ++i) {
-			cur = &ctx->snapshots[i];
-			if (cur->size != 0)
-				continue;
-			dst = cur;
-			break;
-		}
-	}
-
+	dst = get_free_psnap(ctx);
+	if (!dst)
+		return -ENOMEM;
+	
 	printk(KERN_EMERG "snapshot: incr num_active");
 	++ctx->num_active_snapshots;
-	BUG_ON(!dst);
+	ctx->total_snapshot_size += snap->size;
 
 check_size:
-	// TODO: data_size should be passed as a parameter in data
 	if (dst->size == src.size) {
 		printk(KERN_EMERG "snapshot: size match");
 		goto take_snap;
