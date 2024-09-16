@@ -37,6 +37,84 @@
 
 #define INITIAL_SNAPSHOTS_LEN 8
 
+
+int alloc_init_psnap_ctx(struct ptrace_snapshot_ctx **ctx)
+{
+	struct ptrace_snapshot_ctx *tmp_ctx;
+	struct ptrace_snapshot *tmp_snapshots;
+	int err;
+
+	tmp_ctx = kvzalloc(sizeof(struct ptrace_snapshot_ctx), GFP_KERNEL);
+	if (!tmp_ctx)
+		return -ENOMEM;
+
+	err = rhashtable_init(&tmp_ctx->snap_ht, &psnap_rhash_params);
+	if (!err)
+		goto free_ctx;
+
+	tmp_snapshots = kvmalloc(sizeof(INITIAL_SNAPSHOTS_LEN * sizeof(struct ptrace_snapshot), GFP_KERNEL);
+	if (!tmp_snapshots)
+		goto free_snap_ht;
+
+	tmp_ctx->snapshots = tmp;
+	*ctx = tmp_ctx;
+	return 0;
+
+free_snap_ht:
+	rhashtable_destroy(&tmp_ctx->snap_ht);
+free_ctx:
+	kvfree(tmp_ctx);
+	printk(KERN_ERROR "alloc_init_psnap_ctx: alloc/init error\n" );
+	*ctx = NULL;
+	return -ENOMEM;
+
+}
+
+void free_psnap_ctx(struct ptrace_snapshot_ctx *ctx)
+{
+        struct ptrace_snapshot *snapshots, *cur;
+	size_t i;
+
+	if (!ctx)
+		return;
+
+        if (ctx->snapshots_len == 0)
+                goto end_free_snapshots;
+ 
+        snapshots = ctx->snapshots;
+        BUG_ON(!snapshots);
+ 
+        for (i = 0; i < ctx->snapshots_len; ++i) {
+                cur = &snapshots[i];
+                if (cur->size == 0)
+                        continue;
+                kvfree(cur->data);
+        } 
+        kvfree(snapshots);
+
+end_free_snapshots:
+	rhashtable_destroy(&ctx->snap_ht);
+	kvfree(ctx);
+	return;
+}
+
+int insert_snapshot(struct ptrace_snapshot_ctx *ctx,
+		    struct ptrace_snapshot *snap)
+{
+	return -1;
+}
+int remove_snapshot(struct ptrace_snapshot_ctx *ctx,
+		    struct ptrace_snapshot *snap)
+{
+	return -1;
+}
+struct ptrace_snapshot *lookup_snapshot(struct rhashtable *ht,
+					unsigned long addr);
+{
+	return NULL;
+}
+
+
 /*
  * Access another process' address space via ptrace.
  * Source/target buffer must be kernel space,
@@ -1044,6 +1122,15 @@ int generic_ptrace_snapshot(struct task_struct *tsk, unsigned long addr,
 	void *data_tmp;
 	int copied;
 
+	if (!tsk->ptrace_snapshot_ctx) {
+		struct ptrace_snapshot_ctx *tmp;
+		int err = alloc_init_psnap_ctx(&tmp);
+		if (err)
+			return err;
+		tsk->ptrace_snapshot_ctx = tmp;
+	}
+	ctx = tsk->ptrace_snapshot_ctx;
+
 	if (copy_from_user(&src, (void *)data, sizeof(struct mem_region)))
 		return -EFAULT;
 
@@ -1153,6 +1240,8 @@ int generic_ptrace_restore(struct task_struct *tsk, unsigned long addr,
 	int copied;
 
 	ctx = tsk->ptrace_snapshot_ctx;
+	if (!ctx)
+		return -EFAULT;
 
 	snap = NULL;
 	for (i = 0; i < ctx->snapshots_len; ++i) {
@@ -1188,6 +1277,8 @@ int generic_ptrace_getsnapshot(struct task_struct *tsk, unsigned long addr,
 	struct ptrace_snapshot_ctx *ctx = tsk->ptrace_snapshot_ctx;
 	struct ptrace_snapshot *snap = NULL;
 	printk(KERN_EMERG "getsnapshot: getting snapshot @%lx\n", addr);
+	if (!ctx)
+		return -EFAULT;
 	for (i = 0; i < ctx->snapshots_len; ++i) {
 		struct ptrace_snapshot *cur = &ctx->snapshots[i];
 		if (cur->addr != addr)
