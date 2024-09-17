@@ -41,11 +41,6 @@ void proc_child()
     exit(0);
 }
 
-void print_buf(void *buf, size_t  buf_len)
-{
-}
-
-
 int main() 
 {
     buf = calloc(buf_len, sizeof(char));
@@ -110,5 +105,14 @@ int main()
         printf("%3lu   %5c   %5c\n", i, c1, c2);
     }
     fputs("}\n", stdout);
+
+    // for (size_t i = 0; i < buf_len; ++i) {
+    //     printf("%2x", snap1[i]);
+    //     putc(i == buf_len - 1 ? '\n' : ' ', stdout);
+    // }
+    // for (size_t i = 0; i < buf_len; ++i) {
+    //     printf("%2c", snap1[i]);
+    //     putc(i == buf_len - 1 ? '\n' : ' ', stdout);
+    // }
     return 0;
 }

@@ -26,7 +26,7 @@ void proc_child()
 {
     // request tracing by parent
     ptrace(PTRACE_TRACEME, 0, NULL, NULL);
-    
+
     char *v1 = "v1 (1st value)";
     char *v2 = "v2 (2nd value)";
     char *v3 = "v3 (3rd value :: *BAD*)";
@@ -66,7 +66,7 @@ int main()
     child = fork();
     if (!child)
         proc_child();
-    
+
     waitpid(child, &status, 0);
     printf("parent: snap buf\n");
     if (-1 == ptrace(PTRACE_SNAPSHOT, child, NULL, &mem_reg)) {
@@ -74,7 +74,7 @@ int main()
         return 1;
     } 
     ptrace(PTRACE_CONT, child, NULL, NULL);
-    
+
     waitpid(child, &status, 0);
     printf("parent: snap buf\n");
     if (-1 == ptrace(PTRACE_SNAPSHOT, child, NULL, &mem_reg)) {
