@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -g
-TARGET = sys mem restore
+TARGET = sys mem restore test1 test2
 
 .PHONY: all
 all: $(TARGET)
@@ -17,6 +17,8 @@ restore: restore.c
 test1: test1.c
 	$(CC) $(CFLAGS) -o $@ $^
 
+test2: test2.c
+	$(CC) $(CFLAGS) -o $@ $^
 
 .PHONY: clean
 clean:
