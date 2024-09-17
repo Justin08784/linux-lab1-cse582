@@ -1357,9 +1357,7 @@ struct task_struct {
 	int				mce_count;
 #endif
 
-
 	struct ptrace_snapshot_ctx *ptrace_snapshot_ctx;
-
 
 	/*
 	 * New fields for task_struct should be added above here, so that
