@@ -73,10 +73,10 @@ sudo update-grub
 sudo reboot
 ```
 
-- A screenshot of the running VM showing that Linux kernel version
+## A screenshot of the running VM showing that Linux kernel version
 ![alt text](./data/vmlinux-5.10.224.png "VM running 5.10.224")
 
-- The rough time you took to complete the setup  
+## The rough time you took to complete the setup  
 12 hours
 
 # 1.1 Understand ptrace
