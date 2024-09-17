@@ -35,7 +35,8 @@
 #include <asm/syscall.h>	/* for syscall_get_* */
 
 /*
- * Snapshot structs */
+ * Snapshot structs
+ */
 struct ptrace_snapshot {
 	unsigned long addr;
 	unsigned int size;
@@ -49,17 +50,16 @@ struct ptrace_snapshot_ctx {
 	unsigned int total_snapshot_size;
 };
 
-
 int alloc_init_psnap_ctx(struct ptrace_snapshot_ctx **ctx)
 {
 	struct ptrace_snapshot_ctx *tmp_ctx;
 	struct ptrace_snapshot *tmp_snapshots;
 
-	tmp_ctx = kvzalloc(sizeof(struct ptrace_snapshot_ctx), GFP_KERNEL);
+	tmp_ctx = kvzalloc(sizeof(*tmp_ctx), GFP_KERNEL);
 	if (!tmp_ctx)
 		goto fail_alloc_ctx;
 
-	tmp_snapshots = kvzalloc(INITIAL_SNAPSHOTS_LEN * sizeof(struct ptrace_snapshot), GFP_KERNEL);
+	tmp_snapshots = kvzalloc(INITIAL_SNAPSHOTS_LEN * sizeof(*tmp_snapshots), GFP_KERNEL);
 	if (!tmp_snapshots)
 		goto fail_alloc_snapshots;
 
@@ -73,34 +73,32 @@ fail_alloc_snapshots:
 fail_alloc_ctx:
 	*ctx = NULL;
 	return -ENOMEM;
-
 }
 
 void free_psnap_ctx(struct ptrace_snapshot_ctx *ctx)
 {
-        struct ptrace_snapshot *snapshots, *cur;
+	struct ptrace_snapshot *snapshots, *cur;
 	size_t i;
 
 	if (!ctx)
 		return;
 
-        if (ctx->snapshots_len == 0)
-                goto end_free_snapshots;
- 
-        snapshots = ctx->snapshots;
-        BUG_ON(!snapshots);
- 
-        for (i = 0; i < ctx->snapshots_len; ++i) {
-                cur = &snapshots[i];
-                if (cur->size == 0)
-                        continue;
-                kvfree(cur->data);
-        } 
-        kvfree(snapshots);
+	if (ctx->snapshots_len == 0)
+		goto end_free_snapshots;
+
+	snapshots = ctx->snapshots;
+	BUG_ON(!snapshots);
+
+	for (i = 0; i < ctx->snapshots_len; ++i) {
+		cur = &snapshots[i];
+		if (cur->size == 0)
+			continue;
+		kvfree(cur->data);
+	}
+	kvfree(snapshots);
 
 end_free_snapshots:
 	kvfree(ctx);
-	return;
 }
 
 struct ptrace_snapshot *get_free_psnap(struct ptrace_snapshot_ctx *ctx)
@@ -148,10 +146,8 @@ struct ptrace_snapshot *get_free_psnap(struct ptrace_snapshot_ctx *ctx)
 		}
 	}
 
-
 	return rv;
 }
-
 
 struct ptrace_snapshot *lookup_snapshot(struct ptrace_snapshot_ctx *ctx,
 					unsigned long addr)
@@ -167,7 +163,6 @@ struct ptrace_snapshot *lookup_snapshot(struct ptrace_snapshot_ctx *ctx,
 
 	return NULL;
 }
-
 
 /*
  * Access another process' address space via ptrace.
@@ -1161,13 +1156,13 @@ ptrace_get_syscall_info(struct task_struct *child, unsigned long user_size,
 }
 #endif /* CONFIG_HAVE_ARCH_TRACEHOOK */
 
-
 int generic_ptrace_snapshot(struct task_struct *tsk, unsigned long addr,
 			    unsigned long data)
 {
 	struct ptrace_snapshot_ctx *ctx;
 	struct psnap_mem_region src;
 	struct ptrace_snapshot *dst;
+	void *tmp;
 	int total_size_delta = 0;
 	int num_active_delta = 0;
 	int copied;
@@ -1175,6 +1170,7 @@ int generic_ptrace_snapshot(struct task_struct *tsk, unsigned long addr,
 	if (!tsk->ptrace_snapshot_ctx) {
 		struct ptrace_snapshot_ctx *tmp;
 		int err = alloc_init_psnap_ctx(&tmp);
+
 		if (err)
 			return err;
 		tsk->ptrace_snapshot_ctx = tmp;
@@ -1188,7 +1184,6 @@ int generic_ptrace_snapshot(struct task_struct *tsk, unsigned long addr,
 	if (src.size + ctx->total_snapshot_size > MAX_TRACEE_SNAPSHOT_SIZE)
 		return -ENOMEM;
 
-
 // check_addr:
 	dst = lookup_snapshot(ctx, src.addr);
 	if (dst)
@@ -1198,23 +1193,24 @@ int generic_ptrace_snapshot(struct task_struct *tsk, unsigned long addr,
 	dst = get_free_psnap(ctx);
 	if (!dst)
 		return -ENOMEM;
-	
+
 	num_active_delta = 1;
 
 check_size:
 	if (dst->size == src.size)
 		goto take_snap;
 
-	dst->data = krealloc(dst->data, src.size, GFP_KERNEL);
-	if (!dst->data)
+	tmp = krealloc(dst->data, src.size, GFP_KERNEL);
+	if (!tmp)
 		return -ENOMEM;
+	dst->data = tmp;
 	total_size_delta -= dst->size;
 	total_size_delta += src.size;
 	dst->size = src.size;
 	dst->addr = src.addr;
 
 take_snap:
-	copied = ptrace_access_vm(tsk, src.addr, dst->data, (int) dst->size, FOLL_FORCE);
+	copied = ptrace_access_vm(tsk, src.addr, dst->data, (int)dst->size, FOLL_FORCE);
 	if (copied != dst->size) {
 		kvfree(dst->data);
 
@@ -1266,7 +1262,7 @@ int generic_ptrace_getsnapshot(struct task_struct *tsk, unsigned long addr,
 {
 	struct ptrace_snapshot_ctx *ctx;
 	struct ptrace_snapshot *snap;
-	
+
 	ctx = tsk->ptrace_snapshot_ctx;
 	if (!ctx)
 		return -EFAULT;
