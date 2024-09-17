@@ -98,7 +98,7 @@ Changes were made to four kernel files:
 - kernel/ptrace.c
 - include/linux/sched.h
 
-## i/l/ptrace.h
+## include/linux/ptrace.h
 ```c
 struct ptrace_snapshot {
 	unsigned long addr;
@@ -114,11 +114,11 @@ struct ptrace_snapshot_ctx {
 };
 ```
 
-- Defined `struct ptrace_snapshot` (to represent a single snapshot) and `struct ptrace_snapshot_ctx` (to manage all snapshots belonging to a tracee, which are stored in the exponentially-resized `snapshots` array)
+- Defined `struct ptrace_snapshot` (to represent a single snapshot) and `struct ptrace_snapshot_ctx` (to manage all snapshots belonging to a tracee, which are stored in the `snapshots` array)
 - Modified `ptrace_init_task()` and `ptrace_release_task()` to respectively initialize and free a tracee's ptrace_snapshot_ctx field
 
 
-## i/u/l/ptrace.h
+## include/uapi/linux/ptrace.h
 ```c
 #define PTRACE_SNAPSHOT		  10
 #define PTRACE_RESTORE		  11
@@ -130,24 +130,29 @@ struct psnap_mem_region {
 };
 ```
 - Goal: change uapi to expose new functionalities to users
-- Defined constants `PTRACE_SNAPSHOT`, `PTRACE_RESTORE, `PTRACE_GETSNAPSHOT` for new commands in the syscall interface
+- Defined constants `PTRACE_SNAPSHOT`, `PTRACE_RESTORE`, `PTRACE_GETSNAPSHOT` for new commands in the syscall interface
 - Defined `struct psnap_mem_region` to allow users to specify the memory region to snapshot
 
-## k/ptrace.c
+## kernel/ptrace.c
 - Implemented snapshot, restore, and getsnapshot in new `generic_ptrace_X()` functions, which behave as described in the instructions
+- ptrace_snapshot_ctx is lazily allocated; it is allocated only on the first ptrace_snapshot call. The `snapshots` array
+is exponentially-resized as new snapshot entries are needed.
+- Snapshotting is subject to hard-coded memory restrictions. There can be at most `MAX_TRACEE_SNAPSHOT_NUM` snapshots, and at most `MAX_TRACEE_SNAPSHOT_SIZE` total bytes of snapshotted data per process. Further, each snapshot can be at most `MAX_PTRACE_SNAPSHOT_SIZE` bytes large.
 - Updated `ptrace_request()` to dispatch new commands to corresponding `generic_ptrace_X()` functions
 
-## i/l/sched.h
+## include/linux/sched.h
 - Added `struct ptrace_snapshot_ctx` field to the `struct task_struct` to manage all ptrace snapshots associated with the process. Null-initialized by `ptrace_init_task()` upon process creation; freed upon exit.
 
 
 
 # 1.3 Test Selective Memory Snapshotting
-## linux-lab1-cse582/ptrace-examples/test1.c
+## ptrace-examples/test1.c
+test1 corresponds to test_scenario1 in the instructions.
 ![alt text](./data/test1.png "test1")
 
 
-## linux-lab1-cse582/ptrace-examples/test2.c
+## ptrace-examples/test2.c
+test2 corresponds to test_scenario2 in the instructions.
 ![alt text](./data/test2.png "test2")
 
 
