@@ -8,7 +8,6 @@
  * to continually duplicate across every architecture.
  */
 
-#include <linux/kernel.h>
 #include <linux/capability.h>
 #include <linux/export.h>
 #include <linux/sched.h>
