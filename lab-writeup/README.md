@@ -72,7 +72,7 @@ sudo reboot
 ```
 
 - A screenshot of the running VM showing that Linux kernel version
-![alt text](./data/linux.png "VM running custom linux")
+![alt text](./data/vm-linux.png "VM running custom linux")
 
 - The rough time you took to complete the setup
 
