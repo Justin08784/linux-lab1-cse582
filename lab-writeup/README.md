@@ -43,7 +43,7 @@ sudo resize2fs /dev/ubuntu-vg/ubuntu-lv
 ```
 
 By default, the VM will run version 5.15.0-87-generic of the linux kernel.
-The following steps install my custom linux kernel into the VM.
+The following steps will install my custom linux kernel into the VM.
 
 Update GRUB_DEFAULT in /etc/default/grub to the following:
 GRUB_DEFAULT="Advanced options for Ubuntu>Ubuntu, with Linux 5.10.224+"
@@ -75,6 +75,7 @@ sudo reboot
 ![alt text](./data/vm-linux.png "VM running custom linux")
 
 - The rough time you took to complete the setup
+72 hours
 
 
 
