@@ -185,16 +185,6 @@ struct ptrace_snapshot *get_free_psnap(struct ptrace_snapshot_ctx *ctx)
 	return rv;
 }
 
-int remove_snapshot(struct ptrace_snapshot_ctx *ctx,
-		    struct ptrace_snapshot *snap)
-{
-	--ctx->num_active_snapshots;
-	ctx->total_snapshot_size -= snap->size;
-	kvfree(snap->data);
-	kvfree(snap);
-
-	return 0;
-}
 
 struct ptrace_snapshot *lookup_snapshot(struct ptrace_snapshot_ctx *ctx,
 					unsigned long addr)
