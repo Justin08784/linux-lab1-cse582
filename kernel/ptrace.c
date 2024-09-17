@@ -98,7 +98,6 @@ int alloc_init_psnap_ctx(struct ptrace_snapshot_ctx **ctx)
 fail_alloc_snapshots:
 	kvfree(tmp_ctx);
 fail_alloc_ctx:
-	printk(KERN_ERR "alloc_init_psnap_ctx: alloc error\n");
 	*ctx = NULL;
 	return -ENOMEM;
 
@@ -141,14 +140,11 @@ struct ptrace_snapshot *get_free_psnap(struct ptrace_snapshot_ctx *ctx)
 		unsigned int old_len, new_len;
 		size_t i;
 		/* snapshot array full */
-		printk(KERN_DEBUG "snapshot: arr full");
 
 		if (ctx->snapshots_len == MAX_TRACEE_SNAPSHOT_NUM)
 			return NULL;
 
 		old_len = ctx->snapshots_len;
-		if (old_len == 0)
-			printk(KERN_DEBUG "get_free_psnap: get_old_len = 0. How could this be?");
 		new_len = old_len ? 2 * old_len : INITIAL_SNAPSHOTS_LEN;
 
 		tmp = krealloc(ctx->snapshots,
@@ -169,7 +165,6 @@ struct ptrace_snapshot *get_free_psnap(struct ptrace_snapshot_ctx *ctx)
 	} else {
 		size_t i;
 		struct ptrace_snapshot *cur;
-		printk(KERN_DEBUG "snapshot: arr not full");
 
 		for (i = 0; i < ctx->snapshots_len; ++i) {
 			cur = &ctx->snapshots[i];
@@ -1215,7 +1210,6 @@ int generic_ptrace_snapshot(struct task_struct *tsk, unsigned long addr,
 
 	if (copy_from_user(&src, (void *)data, sizeof(struct psnap_mem_region)))
 		return -EFAULT;
-	printk(KERN_DEBUG "snapshot: taking snapshot @%lx\n", src.addr);
 	if (src.size == 0)
 		return -EFAULT;
 	if (src.size + ctx->total_snapshot_size > MAX_TRACEE_SNAPSHOT_SIZE)
@@ -1224,26 +1218,19 @@ int generic_ptrace_snapshot(struct task_struct *tsk, unsigned long addr,
 
 // check_addr:
 	dst = lookup_snapshot(ctx, src.addr);
-	if (dst) {
-		printk(KERN_DEBUG "snapshot: addr match found");
+	if (dst)
 		goto check_size;
-	}
-	printk(KERN_DEBUG "snapshot: addr no match");
 
 	/* snapshot with matching address not found */
 	dst = get_free_psnap(ctx);
 	if (!dst)
 		return -ENOMEM;
 	
-	printk(KERN_DEBUG "snapshot: incr num_active");
 	num_active_delta = 1;
 
 check_size:
-	if (dst->size == src.size) {
-		printk(KERN_DEBUG "snapshot: size match");
+	if (dst->size == src.size)
 		goto take_snap;
-	}
-	printk(KERN_DEBUG "snapshot: size no match. dst->size: %d, src.size: %d", dst->size, src.size);
 
 	dst->data = krealloc(dst->data, src.size, GFP_KERNEL);
 	if (!dst->data)
@@ -1254,9 +1241,7 @@ check_size:
 	dst->addr = src.addr;
 
 take_snap:
-	printk(KERN_DEBUG "snapshot: accessing");
 	copied = ptrace_access_vm(tsk, src.addr, dst->data, (int) dst->size, FOLL_FORCE);
-	printk(KERN_DEBUG "snapshot: access finished");
 	if (copied != dst->size) {
 		kvfree(dst->data);
 
@@ -1269,11 +1254,6 @@ take_snap:
 	ctx->total_snapshot_size += total_size_delta;
 	ctx->num_active_snapshots += num_active_delta;
 
-	printk(KERN_DEBUG "snapshot: data = %p\n", (void *)data);
-	printk(KERN_DEBUG "snapshot: dst->size = %d\n", dst->size);
-	printk(KERN_DEBUG "snapshot: dst->addr = %lx\n", dst->addr);
-	printk(KERN_DEBUG "snapshot: dst->data = %p\n", dst->data);
-	printk(KERN_DEBUG "snapshot: *(dst->data) = %x\n", *(int *)dst->data);
 	debug_psnap_ctx(ctx);
 	return 0;
 }
@@ -1315,7 +1295,6 @@ int generic_ptrace_getsnapshot(struct task_struct *tsk, unsigned long addr,
 {
 	struct ptrace_snapshot_ctx *ctx;
 	struct ptrace_snapshot *snap;
-	printk(KERN_DEBUG "getsnapshot: getting snapshot @%lx\n", addr);
 	
 	ctx = tsk->ptrace_snapshot_ctx;
 	if (!ctx)
@@ -1324,10 +1303,6 @@ int generic_ptrace_getsnapshot(struct task_struct *tsk, unsigned long addr,
 	snap = lookup_snapshot(ctx, addr);
 	if (!snap)
 		return -ENOENT;
-	printk(KERN_DEBUG "getsnapshot: snap->size = %d\n", snap->size);
-	printk(KERN_DEBUG "getsnapshot: snap->addr = %lx\n", snap->addr);
-	printk(KERN_DEBUG "getsnapshot: snap->data = %p\n", snap->data);
-	printk(KERN_DEBUG "getsnapshot: *(dst->data) = %x\n", *(int *)snap->data);
 
 	debug_psnap_ctx(ctx);
 	return copy_to_user((void *)data, snap->data, snap->size);
@@ -1336,7 +1311,6 @@ int generic_ptrace_getsnapshot(struct task_struct *tsk, unsigned long addr,
 int ptrace_request(struct task_struct *child, long request,
 		   unsigned long addr, unsigned long data)
 {
-	// printk(KERN_DEBUG "my message: ooga booga\n");
 	bool seized = child->ptrace & PT_SEIZED;
 	int ret = -EIO;
 	kernel_siginfo_t siginfo, *si;
@@ -1352,13 +1326,10 @@ int ptrace_request(struct task_struct *child, long request,
 	case PTRACE_POKEDATA:
 		return generic_ptrace_pokedata(child, addr, data);
 	case PTRACE_SNAPSHOT:
-		printk(KERN_DEBUG "ptrace_request: snapshot\n");
 		return generic_ptrace_snapshot(child, addr, data);
 	case PTRACE_RESTORE:
-		printk(KERN_DEBUG "ptrace_request: restore\n");
 		return generic_ptrace_restore(child, addr, data);
 	case PTRACE_GETSNAPSHOT:
-		printk(KERN_DEBUG "ptrace_request: getsnapshot\n");
 		return generic_ptrace_getsnapshot(child, addr, data);
 
 #ifdef PTRACE_OLDSETOPTIONS
