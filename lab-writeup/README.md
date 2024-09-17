@@ -1,6 +1,6 @@
 # 1.0 Kernel Setup
 ## The hardware and OS of your experiment machine
-**Hardware**: Macbook Pro, 13-inch, 2020 (chip: Apple M1)
+**Hardware**: Macbook Pro, 13-inch, 2020 (chip: Apple M1)  
 **OS**: macOS 14.6.1 23G93 arm64 (kernel: 23.6.0)
 
 ## The command lines you used to setup and run the VM
@@ -17,14 +17,14 @@ unzip ubuntu-20.04-arm64-utm.zip
 Now open UTM. To create a new instance, click through: File > New... > Existing :: Open...
 and choose "Ubuntu 22.04.utm" from the previous steps.
 
-VM configuration:
-**RAM**: 8GB (8192MB)
-**Disk**: 64GB (default)
+VM configuration:  
+**RAM**: 8GB (8192MB)  
+**Disk**: 64GB (default)  
 **Number of cores**: 6
 
 Click on the large arrow button to start the instance.
 
-Run the following commands inside the VM.
+Run the following commands inside the VM.  
 First, we have to resize the partition to use the full 64GB allocated to the VM
 ([source](https://www.albertyw.com/note/resizing-ubuntu-utm)).
 ```console
@@ -76,11 +76,11 @@ sudo reboot
 - A screenshot of the running VM showing that Linux kernel version
 ![alt text](./data/vmlinux-5.10.224.png "VM running 5.10.224")
 
-- The rough time you took to complete the setup
+- The rough time you took to complete the setup  
 12 hours
 
 # 1.1 Understand ptrace
-The ptrace syscall is implemented in `kernel/ptrace.h`.
+The ptrace syscall is implemented in `kernel/ptrace.c`.
 
 ## PTRACE_PEEKDATA:
 1. Using ptrace_access_vm, reads a word from the tracee process's memory into a temporary kernel buffer (tmp).
