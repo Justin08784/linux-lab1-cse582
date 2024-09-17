@@ -44,8 +44,8 @@ sudo resize2fs /dev/ubuntu-vg/ubuntu-lv
 
 By default, the VM will run version 5.15.0-87-generic of the linux kernel.
 
-Update GRUB_DEFAULT in /etc/default/grub to the following:
-GRUB_DEFAULT="Advanced options for Ubuntu>Ubuntu, with Linux 5.10.224"
+Update GRUB_DEFAULT in /etc/default/grub to the following:  
+GRUB_DEFAULT="Advanced options for Ubuntu>Ubuntu, with Linux 5.10.224"  
 Run `sudo update-grub` to apply these changes.
 
 ```console
