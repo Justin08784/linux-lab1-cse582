@@ -83,12 +83,13 @@ sudo reboot
 The ptrace syscall is implemented in `kernel/ptrace.c`.
 
 ## PTRACE_PEEKDATA:
-1. Using ptrace_access_vm, reads a word from the tracee process's memory into a temporary kernel buffer (tmp).
-2. Using put_user, copies the data from the kernel buffer to the user-provided address (data) using put_user.
+1. Using `ptrace_access_vm()`, reads a word from the tracee process's memory into a temporary kernel buffer (tmp). `ptrace_access_vm()` also verifies that the tracee is being traced (tsk->ptrace is set) and that the current process is the tracee's parent. The `FOLL_FORCE` flag forces the read operation, bypassing certain access restrictions.
+
+2. Using `put_user()`, copies the data from the kernel buffer to the user-provided address (data).
 3. Returns 0 on success or -EIO on failure.
 
 ## PTRACE_POKEDATA
-1. Using ptrace_access_vm, writes a word (data) to the tracee's memory.
+1. Using `ptrace_access_vm()`, writes a word (data) to the tracee's memory. `FOLL_FORCE | FOLL_WRITE` flags force a memory write operation.
 2. Returns 0 on success or -EIO on failure.
 
 # 1.2 Implement Selective Memory Snapshotting
