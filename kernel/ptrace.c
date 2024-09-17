@@ -53,7 +53,7 @@ struct ptrace_snapshot_ctx {
 
 void debug_psnap(struct ptrace_snapshot *snap)
 {
-	printk(KERN_EMERG "* {addr: %ld, size: %d, data: %p}\n",
+	printk(KERN_EMERG "* {addr: %lu, size: %u, data: %p}\n",
 	       snap->addr,
 	       snap->size,
 	       snap->data);
@@ -63,15 +63,15 @@ void debug_psnap_ctx(struct ptrace_snapshot_ctx *ctx)
 {
 	size_t i;
 	printk(KERN_EMERG "psnap_ctx @ %p : {\n"
-	        "snapshots_len: %d\n"
-	        "num_active: %d\n"
-	        "total_size: %d\n"
-		"snapshots @ %p\n",
-		ctx,
-		ctx->snapshots_len,
-		ctx->num_active_snapshots,
-		ctx->total_snapshot_size,
-		ctx->snapshots);
+	       "snapshots_len: %u\n"
+	       "num_active: %u\n"
+	       "total_size: %u\n"
+	       "snapshots @ %p\n",
+	       ctx,
+	       ctx->snapshots_len,
+	       ctx->num_active_snapshots,
+	       ctx->total_snapshot_size,
+	       ctx->snapshots);
 	for (i = 0; i < ctx->snapshots_len; ++i)
 		debug_psnap(&ctx->snapshots[i]);
 	printk(KERN_EMERG "}\n");
