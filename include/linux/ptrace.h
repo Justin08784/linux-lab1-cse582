@@ -10,8 +10,6 @@
 #include <linux/pid_namespace.h>	/* For task_active_pid_ns.  */
 #include <uapi/linux/ptrace.h>
 #include <linux/seccomp.h>
-#include <linux/rhashtable.h>
-#include <linux/list.h>
 
 /* Add sp to seccomp_data, as seccomp is user API, we don't want to modify it */
 struct syscall_info {
@@ -76,7 +74,7 @@ extern void exit_ptrace(struct task_struct *tracer, struct list_head *dead);
 #define MAX_PTRACE_SNAPSHOT_SIZE  64  // in bytes
 #define MAX_TRACEE_SNAPSHOT_NUM   64
 #define MAX_TRACEE_SNAPSHOT_SIZE  4096
-
+#define INITIAL_SNAPSHOTS_LEN	  8
 struct ptrace_snapshot_ctx;
 void free_psnap_ctx(struct ptrace_snapshot_ctx *ctx);
 
@@ -214,6 +212,7 @@ static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
 	child->jobctl = 0;
 	child->ptrace = 0;
 	child->parent = child->real_parent;
+
 	child->ptrace_snapshot_ctx = NULL;
 	if (unlikely(ptrace) && current->ptrace) {
 		child->ptrace = current->ptrace;

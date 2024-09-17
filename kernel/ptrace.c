@@ -35,7 +35,6 @@
 
 #include <asm/syscall.h>	/* for syscall_get_* */
 
-#define INITIAL_SNAPSHOTS_LEN 8
 /*
  * Snapshot structs */
 struct ptrace_snapshot {
@@ -1194,16 +1193,12 @@ ptrace_get_syscall_info(struct task_struct *child, unsigned long user_size,
 }
 #endif /* CONFIG_HAVE_ARCH_TRACEHOOK */
 
-struct mem_region {
-	unsigned long addr;
-	unsigned int size;
-};
 
 int generic_ptrace_snapshot(struct task_struct *tsk, unsigned long addr,
 			    unsigned long data)
 {
 	struct ptrace_snapshot_ctx *ctx;
-	struct mem_region src;
+	struct psnap_mem_region src;
 	struct ptrace_snapshot *dst;
 	int total_size_delta = 0;
 	int num_active_delta = 0;
@@ -1218,7 +1213,7 @@ int generic_ptrace_snapshot(struct task_struct *tsk, unsigned long addr,
 	}
 	ctx = tsk->ptrace_snapshot_ctx;
 
-	if (copy_from_user(&src, (void *)data, sizeof(struct mem_region)))
+	if (copy_from_user(&src, (void *)data, sizeof(struct psnap_mem_region)))
 		return -EFAULT;
 	printk(KERN_DEBUG "snapshot: taking snapshot @%lx\n", src.addr);
 	if (src.size == 0)

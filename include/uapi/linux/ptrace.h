@@ -33,6 +33,11 @@
 #define PTRACE_GETSIGINFO	0x4202
 #define PTRACE_SETSIGINFO	0x4203
 
+struct psnap_mem_region {
+	unsigned long addr;
+	unsigned int size;
+};
+
 /*
  * Generic ptrace interface that exports the architecture specific regsets
  * using the corresponding NT_* types (which are also used in the core dump).
