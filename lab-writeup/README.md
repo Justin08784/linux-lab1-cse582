@@ -1,6 +1,6 @@
 # 1.0 Kernel Setup
 ## The hardware and OS of your experiment machine
-Hardware: Macbook Pro, 13-inch, 2020 (chip: Apple M1)
+Hardware: Macbook Pro, 13-inch, 2020 (chip: Apple M1)  
 OS: macOS 14.6.1 23G93 arm64 (kernel: 23.6.0)
 
 ## The command lines you used to setup and run the VM
@@ -17,10 +17,10 @@ unzip ubuntu-20.04-arm64-utm.zip
 Now open UTM. To create a new instance, click through: File > New... > Existing :: Open... 
 and choose "Ubuntu 22.04.utm" from the previous steps.
 
-VM configuration:
-RAM: 8GB (8192MB)
-Disk: 64GB (default)
-Number of cores: 6
+VM configuration:  
+RAM: 8GB (8192MB)  
+Disk: 64GB (default)  
+Number of cores: 6  
 
 Click on the large arrow button to start the instance.
 
@@ -28,26 +28,26 @@ Run the following commands inside the VM.
 First, we have to resize the partition to use the full 64GB allocated to the VM
 ([source](https://www.albertyw.com/note/resizing-ubuntu-utm)).
 ```console
-# in bash 
+# bash
 sudo fdisk -l
 sudo parted -l
 pvresize /dev/vda3
 
 sudo lvm
-# inside lvm console
+# lvm console
 lvextend -l +100%FREE /dev/ubuntu-vg/ubuntu-lv
 exit
 
-# in bash 
+# bash
 sudo resize2fs /dev/ubuntu-vg/ubuntu-lv
 ```
 
-By default, the VM is running version 5.15.0-87-generic of the linux kernel.
+By default, the VM will run version 5.15.0-87-generic of the linux kernel.
+The following steps install my custom linux kernel into the VM.
 
-Next, update GRUB_DEFAULT in /etc/default/grub to the following:
+Update GRUB_DEFAULT in /etc/default/grub to the following:
 GRUB_DEFAULT="Advanced options for Ubuntu>Ubuntu, with Linux 5.10.224+"
 
-Finally, we build the custom linux kernel.
 ```console
 sudo apt-get update
 
@@ -67,6 +67,8 @@ scripts/config --disable MODULE_SIG_ALL
 # build script
 chmod +x ./build.sh
 sudo ./build.sh
+
+sudo reboot
 ```
 
 - A screenshot of the running VM showing that Linux kernel version
