@@ -3,5 +3,5 @@ make CC="ccache gcc" -j$(nproc)
 sudo make modules_install
 sudo make install
 sudo update-grub
-git diff b8cea2e630cf0b935ebb76aa56f26a98f5eee33b...main -- . ':!build.sh'  ':!ptrace-examples' > lab1.patch
+git diff b8cea2e630cf0b935ebb76aa56f26a98f5eee33b -- . ':!build.sh'  ':!ptrace-examples' > lab1.patch
 cp lab1.patch ../submission-lab1-cse582/
